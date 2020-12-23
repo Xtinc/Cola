@@ -161,6 +161,7 @@ subroutine read_mesh_native
 
   ! Array for temporary storage of doubles
   real(dp), dimension(:), allocatable :: r8tmp
+  integer :: localfloat, localint
  
 
 !******************************************************************************
@@ -274,37 +275,26 @@ subroutine read_mesh_native
   do i=1,numBoundaries
       iBndValueStart(i) = numCells + (startFace(i) - numInnerFaces)
   enddo 
-
+  
 !
 ! > Write report on mesh size into log file
 !
   write ( *, '(a)' ) ' '
-  write ( *, '(a)' ) ' '
-  write ( *, '(a)' ) '  Mesh data: '
-
-  write ( *, '(a)' ) ' '
-  write ( *, '(a,i0)' ) '  Number of nodes, numNodes = ', numNodes
-
-  write ( *, '(a)' ) ' '
-  write ( *, '(a,i0)' ) '  Number of cells, numCells = ', numCells
-
-  write ( *, '(a)' ) ' '
-  write ( *, '(a,i0)' ) '  Number of cell-faces, numFaces = ', numFaces
-
-  write ( *, '(a)' ) ' '
-  write ( *, '(a,i0)' ) '  Number of inner cell-faces, numInnerFaces = ', numInnerFaces
-
-  write ( *, '(a)' ) ' '
-  write ( *, '(a,i0)' ) '  Number of cell-faces on boundary, numBoundaryFaces = ', numBoundaryFaces
-
-  write ( *, '(a)' ) ' '
-  write ( *, '(a)' ) '  Boundary information (bcname, bctype, nFaces, startFace):'
-  write ( *, '(a)' ) ' '
+  write ( *, '(2x,a)' ) 'Mesh Data:'
+  WRITE ( *,'(2x,a)') '------------------------------------------------------------------------------'
+  write ( *, '(2x,a,a1,i20)' ) formatSTR('No.of Nodes, NumNodes',.false.,lc),'|',numNodes
+  write ( *, '(2x,a,a1,i20)' ) formatSTR('No.of Cells, NumCells',.false.,lc),'|' , numCells
+  write ( *, '(2x,a,a1,i20)' ) formatSTR('No.of Cell Faces, NumFaces',.false.,lc),'|', numFaces
+  write ( *, '(2x,a,a1,i20)' ) formatSTR('No.of Inner Faces, NumInnerFaces',.false.,lc),'|', numInnerFaces
+  write ( *, '(2x,a,a1,i20)' ) formatSTR('No.of Boundary Faces, NumBoundaryFaces',.false.,lc),'|', numBoundaryFaces
+  WRITE(*,'(2x,a,a1,a)')'#Boundary________________________________________________','|','____________________'
+  write ( *, '(2x,a,a1,a,a1,a,a1,a)' ) formatSTR('bcname',.true.,17),'|',formatSTR('bctype',.true.,19),'|',&
+      formatSTR('nFaces',.true.,19),'|',formatSTR('startFace',.true.,20)
   
   do i=1,numBoundaries
-    write(*,'(2x,a,1x,a,1x,2(i0,1x))') bcname(i), bctype(i), nfaces(i) ,startFace(i)
+    write(*,'(2x,a,a1,a,a1,i19,a1,i20)') formatSTR(trim(bcname(i)),.true.,17),'|',formatSTR(trim(bctype(i)),.true.,19),'|', nfaces(i),'|',startFace(i)
   enddo  
-  write ( *, '(a)' ) ' '
+  WRITE(*,'(2x,a)') '------------------------------------------------------------------------------'
 
 
 
@@ -350,7 +340,18 @@ subroutine read_mesh_native
   allocate ( dns(nsym) )      
   allocate ( srds(nsym) )  
   allocate ( dnw(nwal) )      
-  allocate ( srdw(nwal) )                             
+  allocate ( srdw(nwal) )          
+  
+  ! Report
+  localfloat = numNodes*3+numCells*5+numFaces*6+numInnerFaces
+  localint = numFaces+numInnerFaces
+  nofloat = nofloat+localfloat
+  noint = noint+localint
+  write (*,'(a)' ) ' '
+  write (*,'(2x,a)' )'Creating Matrix:'
+  WRITE (*,'(2x,a)') '------------------------------------------------------------------------------'
+  write (*,'(2x,a,a1,i20)')formatSTR('Float Array Size For Mesh',.false.,lc),'|',localfloat
+  write (*,'(2x,a,a1,i20)')formatSTR('Integer Array Size For Mesh',.false.,lc),'|',localint
 
 
 !******************************************************************************
@@ -650,54 +651,6 @@ subroutine read_mesh_native
     endif 
 
   enddo
-
-
-!******************************************************************************
-! > Report on geometrical quantities > I will leave this for debug purposes.
-!..............................................................................
-
-  write ( *, '(a)' ) ' '
-  write ( *, '(a)' ) '  Cell data: '
-
-  call r8vec_print_some ( numCells, vol, 1, 10, &
-      '  First 10 elements of cell volumes array:' )
-
-  call r8vec_print_some ( numCells, xc, 1, 10, &
-      '  First 10 elements of cell x-centers array:' )
-
-  call r8vec_print_some ( numCells, yc, 1, 10, &
-      '  First 10 elements of cell y-centers array:' )
-
-  call r8vec_print_some ( numCells, zc, 1, 10, &
-      '  First 10 elements of cell z-centers array:' )
-
-  write ( *, '(a)' ) ' '
-  write ( *, '(a)' ) '  Face data: '
-
-  call i4vec_print2 ( 10, owner, neighbour, '  First 10 lines of owner and neighbour arrays:' )
-
-  call r8vec_print_some ( numFaces, arx, 1, 10, &
-      '  First 10 elements of Arx array:' )
-
-  call r8vec_print_some ( numFaces, ary, 1, 10, &
-      '  First 10 elements of Ary array:' )
-
-  call r8vec_print_some ( numFaces, arz, 1, 10, &
-      '  First 10 elements of Arz array:' )
-
-    call r8vec_print_some ( numFaces, xf, 1, 10, &
-      '  First 10 elements of xf array:' )
-
-  call r8vec_print_some ( numFaces, yf, 1, 10, &
-      '  First 10 elements of yf array:' )
-
-  call r8vec_print_some ( numFaces, zf, 1, 10, &
-      '  First 10 elements of zf array:' )
-
-  call r8vec_print_some ( numInnerFaces, facint, 1, 10, &
-      '  First 10 elements of interpolation factor (facint) array:' )
-
-  write ( *, '(a)' ) ' '
   
 !
 !  > CLOSE polyMesh format file: 'points', 'faces', 'owner', 'neighbour', 'boundary'.
@@ -1036,22 +989,22 @@ subroutine read_mesh_openfoam
 !
 ! > Write report on mesh size into log file
 !
-  write ( 6, '(a)' ) ' '
-  write ( 6, '(2x,a)' ) 'Mesh Data:'
-  WRITE ( 6,'(2x,a)') '------------------------------------------------------------------------------'
-  write ( 6, '(2x,a,a1,i20)' ) formatSTR('No. of nodes, numNodes',.false.,lc),'|',numNodes
-  write ( 6, '(2x,a,a1,i20)' ) formatSTR('No. of cells, numCells',.false.,lc),'|' , numCells
-  write ( 6, '(2x,a,a1,i20)' ) formatSTR('No. of cell-faces, numFaces',.false.,lc),'|', numFaces
-  write ( 6, '(2x,a,a1,i20)' ) formatSTR('No. of inner cell-faces, numInnerFaces',.false.,lc),'|', numInnerFaces
-  write ( 6, '(2x,a,a1,i20)' ) formatSTR('No. of cell-faces on boundary, numBoundaryFaces',.false.,lc),'|', numBoundaryFaces
-  WRITE(  6,'(2x,a,a1,a)')formatSTR('#',.false.,lc),'|',formatSTR('#',.true.,rc2)
-  write ( 6, '(2x,a,a1,a,a1,a,a1,a)' ) formatSTR('bcname',.true.,17),'|',formatSTR('bctype',.true.,19),'|',&
+  write ( *, '(a)' ) ' '
+  write ( *, '(2x,a)' ) 'Mesh Data:'
+  WRITE ( *,'(2x,a)') '------------------------------------------------------------------------------'
+  write ( *, '(2x,a,a1,i20)' ) formatSTR('No.of Nodes, NumNodes',.false.,lc),'|',numNodes
+  write ( *, '(2x,a,a1,i20)' ) formatSTR('No.of Cells, NumCells',.false.,lc),'|' , numCells
+  write ( *, '(2x,a,a1,i20)' ) formatSTR('No.of Cell Faces, NumFaces',.false.,lc),'|', numFaces
+  write ( *, '(2x,a,a1,i20)' ) formatSTR('No.of Inner Faces, NumInnerFaces',.false.,lc),'|', numInnerFaces
+  write ( *, '(2x,a,a1,i20)' ) formatSTR('No.of Boundary Faces, NumBoundaryFaces',.false.,lc),'|', numBoundaryFaces
+  WRITE(*,'(2x,a,a1,a)')'#Boundary________________________________________________','|','____________________'
+  write ( *, '(2x,a,a1,a,a1,a,a1,a)' ) formatSTR('bcname',.true.,17),'|',formatSTR('bctype',.true.,19),'|',&
       formatSTR('nFaces',.true.,19),'|',formatSTR('startFace',.true.,20)
   
   do i=1,numBoundaries
-    write(6,'(2x,a,a1,a,a1,i19,a1,i20)') formatSTR(trim(bcname(i)),.true.,17),'|',formatSTR(trim(bctype(i)),.true.,19),'|', nfaces(i),'|',startFace(i)
+    write(*,'(2x,a,a1,a,a1,i19,a1,i20)') formatSTR(trim(bcname(i)),.true.,17),'|',formatSTR(trim(bctype(i)),.true.,19),'|', nfaces(i),'|',startFace(i)
   enddo  
-  WRITE(6,'(2x,a)') '------------------------------------------------------------------------------'
+  WRITE(*,'(2x,a)') '------------------------------------------------------------------------------'
 
 
 
@@ -1103,11 +1056,11 @@ subroutine read_mesh_openfoam
   localint = numFaces+numInnerFaces
   nofloat = nofloat+localfloat
   noint = noint+localint
-  write (6,'(a)' ) ' '
-  write (6,'(2x,a)' )'Creating Matrix:'
-  WRITE (6,'(2x,a)') '------------------------------------------------------------------------------'
-  write (6,'(2x,a,a1,i20)')formatSTR('Float Array Size For Mesh',.false.,lc),'|',localfloat
-  write (6,'(2x,a,a1,i20)')formatSTR('Integer Array Size For Mesh',.false.,lc),'|',localint
+  write (*,'(a)' ) ' '
+  write (*,'(2x,a)' )'Creating Matrix:'
+  WRITE (*,'(2x,a)') '------------------------------------------------------------------------------'
+  write (*,'(2x,a,a1,i20)')formatSTR('Float Array Size For Mesh',.false.,lc),'|',localfloat
+  write (*,'(2x,a,a1,i20)')formatSTR('Integer Array Size For Mesh',.false.,lc),'|',localint
 
 !******************************************************************************
 ! > Read and process Mesh files 

@@ -46,7 +46,7 @@ implicit none
   character(len=15) :: name,type,distribution
   real(dp) :: u0,v0,w0
 
-  write(6,'(a)') '  Initializing '//trim(field_name)//' internal field and boundaries.'
+  write(*,'(a)') '  Initializing '//trim(field_name)//' internal field and boundaries.'
 
   ! 
   ! > Initialize vector field, e.g. Velocity
@@ -107,9 +107,8 @@ implicit none
                 ! write(*,'(8x,3e15.7)') u(ijb),v(ijb),w(ijb)
               end do
             endif
-          endif
 
-          if ( type == 'Neumann' ) then
+          elseif ( type == 'Neumann' ) then
             read(input_unit,*) distribution
             if ( distribution == 'uniform' ) then
               read(input_unit,*) u0,v0,w0  
@@ -129,12 +128,13 @@ implicit none
                 w(ijb) = w(ijp)
               end do       
             else ! nonuniform
-              write(*,'(8x,a,3e15.7)') 'nonuniform'
               do i=1,nfaces(ib)
                 ijb = iBndValueStart(ib) + i
                 read(input_unit,*) dUdxi(1,ijb),dUdxi(2,ijb),dUdxi(3,ijb)
               end do
             endif
+          else
+              write(*,'(a,a,a)')'Boundary condition: ',trim(type),' is not supportted.'
           endif
 
         enddo
@@ -169,7 +169,7 @@ implicit none
   character(len=15) :: name,type,distribution
   real(dp) :: t0
  
-  write(6,'(a)') '  Initializing '//trim(field_name)//' internal field and boundaries.'
+  write(*,'(a)') '  Initializing '//trim(field_name)//' internal field and boundaries.'
 
   ! 
   ! > Initialize scalar field

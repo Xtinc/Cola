@@ -117,13 +117,13 @@ subroutine bcin
 
     enddo
 
-    write ( *, '(a)' ) '  Inlet boundary condition information:'
-    write ( *, '(a,e12.6)' ) '  Mass inflow: ', flomas
-    write ( *, '(a,e12.6)' ) '  Momentum inflow: ', flomom
-    ! write ( *, '(a,e12.6)' ) '  Temperature inflow: ', flowen  
-    write ( *, '(a,e12.6)' ) '  TKE inflow: ', flowte      
-    write ( *, '(a,e12.6)' ) '  Dissipation inflow: ', flowed
-    write ( *, '(a)' ) ' '
+    !write ( *, '(a)' ) '  Inlet boundary condition information:'
+    !write ( *, '(a,e12.6)' ) '  Mass inflow: ', flomas
+    !write ( *, '(a,e12.6)' ) '  Momentum inflow: ', flomom
+    !! write ( *, '(a,e12.6)' ) '  Temperature inflow: ', flowen  
+    !write ( *, '(a,e12.6)' ) '  TKE inflow: ', flowte      
+    !write ( *, '(a,e12.6)' ) '  Dissipation inflow: ', flowed
+    !write ( *, '(a)' ) ' '
 
   else
 

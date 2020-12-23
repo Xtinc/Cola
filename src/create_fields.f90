@@ -405,9 +405,9 @@ subroutine create_fields
       +6*size(uu_aver)+size(h)+3*size(rU)+11*size(BMAGX)
   nofloat = nofloat+localreal
   totalnumsize = (noint*kind(1)+nofloat*dp)/1.024d3
-  write (6,'(2x,a,a1,i20)')formatSTR('Float Array Size For Solver',.false.,lc),'|',localreal
-  write (6,'(2x,a,a1,es20.7)')formatSTR('Least Memories(KB) Required',.false.,lc),'|',totalnumsize
-  WRITE (6,'(2x,a)') '------------------------------------------------------------------------------'
+  write (*,'(2x,a,a1,i20)')formatSTR('Float Array Size For Solver',.false.,lc),'|',localreal
+  write (*,'(2x,a,a1,es20.7)')formatSTR('Least Memories(KB) Required',.false.,lc),'|',totalnumsize
+  WRITE (*,'(2x,a)') '------------------------------------------------------------------------------'
       
 
   ! allocate( phimax( numCells ), stat=ierr) 

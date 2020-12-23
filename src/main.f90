@@ -17,7 +17,7 @@ program cola
   use temperature
   use concentration
   use mhd
-  use utils, only: timestamp
+  use utils, only: timestamp,CLS_CMD_Progress,CMD_PROGRESS_ABSOLUTE,WriteHead
 
   implicit none
 
@@ -26,13 +26,20 @@ program cola
   integer :: itimes, itimee
   real(dp):: source
   real :: start, finish, t_start, t_end
+  logical :: diverge = .false.
+  logical :: fulloop = .true.
+  integer :: checkcycle
   character( len = 9) :: timechar
+  type( CLS_CMD_Progress ) ::Progress
 !                                                                       
 !******************************************************************************
 !
-
-!  Check command line arguments
-  ! narg=command_argument_count()
+! Print logo in the header of monitor file
+  call WriteHead
+  call timestamp
+  
+! Check command line arguments
+! narg=command_argument_count()
   call get_command_argument(1,input_file)
   call get_command_argument(2,restart_file)
   call get_command_argument(3,monitor_file)
@@ -43,18 +50,11 @@ program cola
     if(ios.EQ.0)then
         rewind 6
     endif
+  else
+      write(*,'(2x,a)')'Null Arguments For Monitor£¡'
+      stop
   endif
 
-  ! Print logo in the header of monitor file
-    write(6,'(a)')' '
-    write(6,'(a)')'  Notice:'
-    WRITE(6,'(2x,a)') '------------------------------------------------------------------------------'
-    write(6,'(2xa)')'You are running code Cola. Cola is an opensource computational fluid dynamic '
-    write(6,'(2xa)')'software distributed under GPL license. It is also a modified version of free'
-    write(6,'(2xa)')'Cappuccino, that can be got from https://github.com/nikola-m/freeCappuccino. ' 
-    write(6,'(2xa)')'Cola is designed simplely and itself is an experiment tool for new CFD techs. ' 
-    write(6,'(2xa)')'The initial idea of codes comes from caffe3d, a code in the book of Ferziger.'
-    call timestamp
   ! Record start time.
   call cpu_time(t_start)
 
@@ -78,9 +78,17 @@ program cola
   
   itimes = itime+1
   itimee = itime+numstep
+  checkcycle = ceiling(itime+0.05d0*numstep)
+  !we won't check res in first 5% cycle
+  
+  WRITE(*,*)''
+  WRITE(*,'(2x,a)')'Looping:'
+  WRITE(*,'(2x,a)') '------------------------------------------------------------------------------'
 
   time_loop: do itime=itimes,itimee
-
+    !ProgressBar
+    call Progress%Set( N = numstep , L = 60 )        
+    call Progress%Put(itime,CMD_PROGRESS_ABSOLUTE)
 
     ! Update variables - shift in time: 
     call time_shift
@@ -90,7 +98,7 @@ program cola
 
     ! Courant number report:
     call CourantNo
-
+    
     iteration_loop: do iter=1,maxit 
 
       write(6,'(2(2x,a,i0))') 'Timestep: ',itime,',Iteration: ',iter
@@ -138,15 +146,18 @@ program cola
       ! Check residual and stop program if residuals diverge
       source = max(resor(iu),resor(iv),resor(iw)) 
 
-      if( source.gt.slarge ) then
+      if( itimes.gt.checkcycle.and.source.gt.slarge ) then
           write(6,"(//,10x,a)") "*** Program terminated -  iterations diverge ***" 
-          stop
+          diverge=.true. 
+          fulloop=.false.
+          exit time_loop
       endif
 
       ! If residuals fall to level below tolerance level - simulation is finished.
       if( .not.ltransient .and. source.lt.sormax ) then
         call write_restart_files
         call writefiles
+        fulloop=.false.
         exit time_loop
       end if
 
@@ -187,9 +198,22 @@ program cola
     if(ltransient) call flush(6)
 
   end do time_loop
+  
 
   ! Stop Record. give cpu time used.
   call cpu_time(t_end)
-  write(6,'(a,I0,1x,a)')'>>MISSION COMPLETE, ', INT(t_end - t_start), ' SECONDS OF CPU TIME CONSUMED.'
+  if(.not.fulloop)then
+      write(*,*)''
+      if(diverge)then
+          write(*,"(2x,a,I0,1x,a)") "Program Terminated -  Iterations Diverge, ", INT(t_end - t_start), ' SECONDS OF CPU TIME CONSUMED.'
+      end if
+      
+  else
+      write(*,'(2x,a,I0,1x,a)')'Mission Complete, ', INT(t_end - t_start), ' SECONDS OF CPU TIME CONSUMED.'
+  end if
+  WRITE(*,'(2x,a)') '------------------------------------------------------------------------------'
+
   call timestamp
+  
+  pause
 end program

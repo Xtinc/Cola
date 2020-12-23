@@ -1,5 +1,5 @@
 module utils
-
+    
 public
   integer,parameter::lc = 57
   integer,parameter::rc1 = 78
@@ -8,6 +8,16 @@ public
   !rc - right char define the max characters no. for report from right.
   integer:: nofloat = 0
   integer:: noint = 0
+  
+  Logical , parameter :: CMD_PROGRESS_ABSOLUTE = .true.
+  Type :: CLS_CMD_Progress
+    Integer , private :: N , lens , i
+    Character :: M = "#" , O = "."
+    Character(len=64) :: Prefix
+  Contains
+    Procedure :: Set
+    Procedure :: Put
+  End Type CLS_CMD_Progress
 
 contains
 
@@ -53,7 +63,6 @@ function formatSTR(inSTR,Left,Length)
   endif
   return
 end function
-
 
 function csr_to_k(icell,jcell,ioffset,ja) result(k)
 !
@@ -128,7 +137,6 @@ end function
 
  return
  end subroutine
-
 
  subroutine find_index_position(target_value, istart, iend, intArray, length, indx)
 !
@@ -231,13 +239,12 @@ subroutine timestamp ( )
     end if
   end if
 
-  write(6,'(a)') ' '
+  write(*,'(a)') ' '
 
-  write ( 6, '(2x,a,1x,i2,1x,i4,2x,i2,a1,i2.2,a1,i2.2,a1,i3.3,1x,a)' ) &
+  write ( *, '(2x,a,1x,i2,1x,i4,2x,i2,a1,i2.2,a1,i2.2,a1,i3.3,1x,a)' ) &
     trim ( month(m) ), d, y, h, ':', n, ':', s, '.', mm, trim ( ampm )
 
-  write(6,'(a)') ' '
-  write(6,'(a)') ' '
+  write(*,'(a)') ' '
 
 end subroutine
 
@@ -749,7 +756,6 @@ subroutine i4vec2_compare ( n, a1, a2, i, j, isgn )
   return
 end
 
-
 subroutine i4vec_print ( n, a, title )
 
 !*****************************************************************************80
@@ -847,7 +853,6 @@ subroutine i4vec_print2 ( n, a, b, title )
 
   return
 end
-
 
 subroutine r8vec_print_some ( n, a, i_lo, i_hi, title )
 
@@ -1083,5 +1088,46 @@ subroutine i4_to_s_left ( i4, s )
   return
 end
 
+Subroutine Set( this , N , L )
+  Class( CLS_CMD_Progress ) :: this
+  Integer , Intent( IN ) :: N , L
+  this % N    = N
+  this % lens = L
+  this % i = 0
+  this % Prefix = "  Progress: " !//
+End Subroutine Set
+  
+Subroutine Put( this , K , bAbsol )
+  Class( CLS_CMD_Progress ) :: this
+  Integer , Intent( IN ) :: K
+  Logical , optional :: bAbsol
+  Character(len=1) :: br
+  integer :: jm
+  this % i = this % i + K
+  if ( present( bAbsol ) ) then
+    if ( bAbsol ) this % i = K
+  end if
+  if ( this % i > this % n ) this % i = this % n    
+  jm = Nint( real( this%i * this%lens ) / real( this%N ) )
+  if ( this%i < this%n ) then
+    br = char(13)
+  else
+    br = char(10)
+  end if
+  !write( * , '(5a,f6.2,2a)',advance="no") trim(this%Prefix) , '[' , &
+  write( * , '(5a,f6.2,2a,$)') trim(this%Prefix) , '|' , & 
+    repeat(this%M , jm ) , repeat( this%O , this%lens-jm ) , '|' , this%i*100.0/this%N , "%" , br
+End Subroutine Put
+
+subroutine WriteHead()
+  write(*,'(a)')' '
+  write(*,'(a)')'  Notice:'
+  WRITE(*,'(2x,a)') '------------------------------------------------------------------------------'
+  write(*,'(2xa)')'You are running code Cola. Cola is an opensource computational fluid dynamic '
+  write(*,'(2xa)')'software distributed under GPL license. It is also a modified version of free'
+  write(*,'(2xa)')'Cappuccino, that can be got from https://github.com/nikola-m/freeCappuccino. ' 
+  write(*,'(2xa)')'Cola is designed simplely and itself is an experiment tool for new CFD techs. ' 
+  write(*,'(2xa)')'The initial idea of codes comes from caffe3d, a code in the book of Ferziger.'
+end Subroutine
 
 end module

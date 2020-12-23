@@ -125,7 +125,7 @@ subroutine calcp_simple
   do ipcorr=1,npcor
 
     ! Initialize pressure correction
-    pp=0.0d0
+    pp=small
 
     ! Solving pressure correction equation
     ! call dpcg(pp,ip)

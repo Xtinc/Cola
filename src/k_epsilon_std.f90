@@ -58,7 +58,7 @@ subroutine modify_viscosity_k_epsilon_std
 
   if (init) then
     call modify_mu_eff
-    call print_log('Done setting effective viscosity based on initial fields of k and epsilon.')
+    !call print_log('Done setting effective viscosity based on initial fields of k and epsilon.')
     init = .false.
     return
   endif

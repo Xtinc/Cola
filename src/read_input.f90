@@ -20,7 +20,7 @@ subroutine read_input_file
   character(len=2) :: trpn
   character(len=25) :: convective_scheme
   character(len=:), allocatable :: varnames
-  character(len=7) :: len7str
+  character(len=8) :: len8str
 !
 !***********************************************************************
 !
@@ -64,26 +64,27 @@ subroutine read_input_file
   convective_scheme = judge_convection_scheme(convective_scheme)
   limiter = judge_convection_limiter(limiter)
 !.Create an input file reading log:
-  WRITE(6,'(2x,a)') formatSTR('Input log:',.false.,lc)
-  WRITE(6,'(2x,a)') '------------------------------------------------------------------------------'
-  WRITE(6,'(2x,a,a1,a)')formatSTR('Title',.false.,lc),'|',formatSTR(Title,.true.,20)
-  WRITE(6,'(2x,a,a1,a)')formatSTR('Mesh Format',.false.,lc),'|',formatSTR(mesh_format,.true.,20)
-  WRITE(6,'(2x,a,a1,L20)')formatSTR('Read RESTART File',.false.,lc),'|',LREAD
-  WRITE(6,'(2x,a,a1,L20)')formatSTR('Write RESTART File',.false.,lc),'|',LWRITE
-  WRITE(6,'(2x,a,a1,L20)')formatSTR('Print Linear Solver Residual',.false.,lc),'|',LTEST
-  WRITE(6,'(2x,a,a1,i20)')formatSTR('Monitor Cell',.false.,lc),'|',monCell
-  WRITE(6,'(2x,a,a1,i20)')formatSTR('Pressure Reference Cell',.false.,lc),'|',pRefCell
-  WRITE(6,'(2x,a,a1,i20)')formatSTR('Monitor Cell Number',.false.,lc),'|',MPoints
-  WRITE(6,'(2x,a,a1,es20.7)')formatSTR('Density           ',.false.,lc),'|',DENSIT
-  WRITE(6,'(2x,a,a1,es20.7)')formatSTR('Dynamic Viscosity  ',.false.,lc),'|',VISCOS
-  WRITE(6,'(2x,a,a1,es20.7)')formatSTR('Prandtl Number        ',.false.,lc),'|',PRANL
-  WRITE(6,'(2x,a,a1,es20.7)')formatSTR('Reference Temperature',.false.,lc),'|',TREF
-  WRITE(6,'(2x,a,a1,es20.7)')formatSTR('Thermal Expansion Coefficient',.false.,lc),'|',BETA
-  WRITE(6,'(2x,a,a1,f20.7)')formatSTR('Gravity X Compoment',.false.,lc),'|',GRAVX
-  WRITE(6,'(2x,a,a1,f20.7)')formatSTR('Gravity Y Compoment',.false.,lc),'|',GRAVY
-  WRITE(6,'(2x,a,a1,f20.7)')formatSTR('Gravity Z Compoment',.false.,lc),'|',GRAVZ
-  WRITE(6,'(2x,a,a1,a)')formatSTR('#',.false.,lc),'|',formatSTR('#',.true.,rc2)
-  WRITE(6,'(2x,a,a1,a)')formatSTR('Convective Scheme:',.false.,lc),'|',formatSTR(trim(convective_scheme),.true.,rc2)
+  WRITE(*,'(2x,a)') formatSTR('Input log:',.false.,lc)
+  WRITE(*,'(2x,a)')     '------------------------------------------------------------------------------'
+  WRITE(*,'(2x,a,a1,a)')'#Basic________________________________________________________________________'
+  WRITE(*,'(2x,a,a1,a)')formatSTR('Title',.false.,lc),'|',formatSTR(Title,.true.,20)
+  WRITE(*,'(2x,a,a1,a)')formatSTR('Mesh Format',.false.,lc),'|',formatSTR(mesh_format,.true.,20)
+  WRITE(*,'(2x,a,a1,L20)')formatSTR('Read RESTART File',.false.,lc),'|',LREAD
+  WRITE(*,'(2x,a,a1,L20)')formatSTR('Write RESTART File',.false.,lc),'|',LWRITE
+  WRITE(*,'(2x,a,a1,L20)')formatSTR('Print Linear Solver Residual',.false.,lc),'|',LTEST
+  WRITE(*,'(2x,a,a1,i20)')formatSTR('Monitor Cell',.false.,lc),'|',monCell
+  WRITE(*,'(2x,a,a1,i20)')formatSTR('Pressure Reference Cell',.false.,lc),'|',pRefCell
+  WRITE(*,'(2x,a,a1,i20)')formatSTR('Monitor Cell Number',.false.,lc),'|',MPoints
+  WRITE(*,'(2x,a,a1,es20.7)')formatSTR('Density           ',.false.,lc),'|',DENSIT
+  WRITE(*,'(2x,a,a1,es20.7)')formatSTR('Dynamic Viscosity  ',.false.,lc),'|',VISCOS
+  WRITE(*,'(2x,a,a1,es20.7)')formatSTR('Prandtl Number        ',.false.,lc),'|',PRANL
+  WRITE(*,'(2x,a,a1,es20.7)')formatSTR('Reference Temperature',.false.,lc),'|',TREF
+  WRITE(*,'(2x,a,a1,es20.7)')formatSTR('Thermal Expansion Coefficient',.false.,lc),'|',BETA
+  WRITE(*,'(2x,a,a1,f20.7)')formatSTR('Gravity X Compoment',.false.,lc),'|',GRAVX
+  WRITE(*,'(2x,a,a1,f20.7)')formatSTR('Gravity Y Compoment',.false.,lc),'|',GRAVY
+  WRITE(*,'(2x,a,a1,f20.7)')formatSTR('Gravity Z Compoment',.false.,lc),'|',GRAVZ
+  WRITE(*,'(2x,a,a1,a)')'#Solver__________________________________________________','|','____________________'
+  WRITE(*,'(2x,a,a1,a)')formatSTR('Convective Scheme:',.false.,lc),'|',formatSTR(trim(convective_scheme),.true.,rc2)
   varnames=''
   if(lstsq)then
       varnames = 'LSQR'
@@ -94,10 +95,10 @@ subroutine read_input_file
   else
       varnames = 'Green-Gauss'
   endif
-  WRITE(6,'(2x,a,a1,a)')formatSTR('Gradient Reconstruction Method',.false.,lc),'|',formatSTR(varnames,.true.,rc2)
-  WRITE(6,'(2x,a,a1,a)')formatSTR('Gradient Limiter',.false.,lc),'|',formatSTR(limiter,.true.,rc2)
-  WRITE(6,'(2x,a,a1,i20)')formatSTR('Iterations Of Gradient Calculation',.false.,lc),'|',NIGRAD
-  WRITE(6,'(2x,a,a1,i20)')formatSTR('Iterations Of Pressure Corrections',.false.,lc),'|',NPCOR
+  WRITE(*,'(2x,a,a1,a)')formatSTR('Gradient Reconstruction Method',.false.,lc),'|',formatSTR(varnames,.true.,rc2)
+  WRITE(*,'(2x,a,a1,a)')formatSTR('Gradient Limiter',.false.,lc),'|',formatSTR(limiter,.true.,rc2)
+  WRITE(*,'(2x,a,a1,i20)')formatSTR('Iterations Of Gradient Calculation',.false.,lc),'|',NIGRAD
+  WRITE(*,'(2x,a,a1,i20)')formatSTR('Iterations Of Pressure Corrections',.false.,lc),'|',NPCOR
   if(simple)then
       varnames = 'SIMPLE'
   elseif(piso)then
@@ -106,12 +107,12 @@ subroutine read_input_file
       simple = .true.
       varnames = 'SIMPLE'
   endif
-  WRITE(6,'(2x,a,a1,a)')formatSTR('Pressure Velocity Coupled Algrothrim',.false.,lc),'|',formatSTR(varnames,.true.,rc2)
+  WRITE(*,'(2x,a,a1,a)')formatSTR('Pressure Velocity Coupled Algrothrim',.false.,lc),'|',formatSTR(varnames,.true.,rc2)
   if(piso)then
-      WRITE(6,'(2x,a,a1,i20)')formatSTR('Iterations Of PISO Corrections',.false.,lc),'|',ncorr
+      WRITE(*,'(2x,a,a1,i20)')formatSTR('Iterations Of PISO Corrections',.false.,lc),'|',ncorr
   endif
-  WRITE(6,'(2x,a,a1,es20.7)')formatSTR('Convergence Residual In A Timestep',.false.,lc),'|',SORMAX
-  WRITE(6,'(2x,a,a1,es20.7)')formatSTR('Divergence Residual In A Timestep',.false.,lc),'|',SLARGE
+  WRITE(*,'(2x,a,a1,es20.7)')formatSTR('Convergence Residual In A Timestep',.false.,lc),'|',SORMAX
+  WRITE(*,'(2x,a,a1,es20.7)')formatSTR('Divergence Residual In A Timestep',.false.,lc),'|',SLARGE
   if(LTRANSIENT)then
       if(BDF)then 
           varnames = 'BDF in 1st order'
@@ -128,21 +129,21 @@ subroutine read_input_file
   else
       varnames = 'None'
   endif
-  WRITE(6,'(2x,a,a1,a)')formatSTR('Temporal Scheme',.false.,lc),'|',formatSTR(varnames,.true.,rc2)  
+  WRITE(*,'(2x,a,a1,a)')formatSTR('Temporal Scheme',.false.,lc),'|',formatSTR(varnames,.true.,rc2)  
   if(LTRANSIENT)then
-      WRITE(6,'(2x,a,a1,es20.7)')formatSTR('Timestep Size',.false.,lc),'|',TIMESTEP
+      WRITE(*,'(2x,a,a1,es20.7)')formatSTR('Timestep Size',.false.,lc),'|',TIMESTEP
   endif
-  WRITE(6,'(2x,a,a1,i20)')formatSTR('Total Number Of Cycles',.false.,lc),'|',NUMSTEP
-  WRITE(6,'(2x,a,a1,i20)')formatSTR('Output Intervals (Cycles Number)',.false.,lc),'|',NZAPIS
-  WRITE(6,'(2x,a,a1,i20)')formatSTR('Maximum Cycles In A Timestep',.false.,lc),'|',MAXIT
+  WRITE(*,'(2x,a,a1,i20)')formatSTR('Total Number Of Cycles',.false.,lc),'|',NUMSTEP
+  WRITE(*,'(2x,a,a1,i20)')formatSTR('Output Intervals (Cycles Number)',.false.,lc),'|',NZAPIS
+  WRITE(*,'(2x,a,a1,i20)')formatSTR('Maximum Cycles In A Timestep',.false.,lc),'|',MAXIT
+  WRITE(*,'(2x,a,a1,L20)')formatSTR('Constant Flow Rate Hypothesis',.false.,lc),'|',const_mflux
+  WRITE(*,'(2x,a,a1,es20.7)')formatSTR('Magnitude Of The Bulk Velocity',.false.,lc),'|',magUBar
   if(CoNumFix)then
-      WRITE(6,'(2x,a,a1,es20.7)')formatSTR('Fixed Value For Courant Number',.false.,lc),'|',CoNumFixValue
+      WRITE(*,'(2x,a,a1,es20.7)')formatSTR('Fixed Value For Courant Number',.false.,lc),'|',CoNumFixValue
   endif
-  
-  WRITE(6,'(2x,a,a1,a)')formatSTR('#',.false.,lc),'|',formatSTR('#',.true.,rc2)
-  WRITE(6,'(2x,a,a1,L20)')formatSTR('Bouyancy Effects In Momentum & Turbulence Eqns:',.false.,lc),'|',LBUOY
-  WRITE(6,'(2x,a,a1,L20)')formatSTR('Boussinesq Hypothesis:',.false.,lc),'|',BOUSSINESQ
-  WRITE(6,'(2x,a,a1,a)')formatSTR('#',.false.,lc),'|',formatSTR('#',.true.,rc2)
+  WRITE(*,'(2x,a,a1,L20)')formatSTR('Bouyancy Effects In Momentum & Turbulence Eqns:',.false.,lc),'|',LBUOY
+  WRITE(*,'(2x,a,a1,L20)')formatSTR('Boussinesq Hypothesis:',.false.,lc),'|',BOUSSINESQ
+  WRITE(*,'(2x,a,a1,a)')'#Turbulence______________________________________________','|','____________________'
   ! Turbulent flow computation condition:
   ! Current Turb Models are mainly eddy visc models.
   ! In fact, I think input checking should be more strict. like LSGDH,LGGDH,LAFM and some others have
@@ -150,10 +151,10 @@ subroutine read_input_file
   lturb = levm.or.lasm.or.lles
   if(lturb)then
       if(lasm)then
-          WRITE(6,'(2x,a)')formatSTR('Algebraic Turblence Stress Model',.true.,rc1)
+          WRITE(*,'(2x,a)')formatSTR('Algebraic Turbulence Stress Model',.true.,rc1)
       endif
       if(levm.or.lles)then
-          WRITE(6,'(2x,a)')formatSTR(trim(judge_turbulence_model(TurbModel)),.true.,rc1)
+          WRITE(*,'(2x,a)')formatSTR(trim(judge_turbulence_model(TurbModel)),.true.,rc1)
       endif
       varnames=''
       if(LSGDH)then
@@ -165,61 +166,58 @@ subroutine read_input_file
       else
           varnames = formatSTR('None',.true.,rc2)
       endif
-      WRITE(6,'(2x,a,a1,a)')formatSTR('Turbulent Heat Flux Calculation Method',.false.,lc),'|',varnames
-      WRITE(6,'(2x,a,a1,f20.7)') formatSTR('Underelaxation Factor For Reynolds Stresses',.false.,lc),'|',FACNAP
-      WRITE(6,'(2x,a,a1,f20.7)') formatSTR('Underelaxation Factor For Turbulent Heat Fluxes',.false.,lc),'|',FACFLX
+      WRITE(*,'(2x,a,a1,a)')formatSTR('Turbulent Heat Flux Calculation Method',.false.,lc),'|',varnames
+      WRITE(*,'(2x,a,a1,f20.7)') formatSTR('Underelaxation Factor For Reynolds Stresses',.false.,lc),'|',FACNAP
+      WRITE(*,'(2x,a,a1,f20.7)') formatSTR('Underelaxation Factor For Turbulent Heat Fluxes',.false.,lc),'|',FACFLX
   else
-      WRITE(6,'(2x,a)')formatSTR('None',.true.,rc1)
+      WRITE(*,'(2x,a)')formatSTR('None',.true.,rc1)
   endif
-  WRITE(6,'(2x,a,a1,a)')formatSTR('#',.false.,lc),'|',formatSTR('#',.true.,rc2)
-  WRITE(6,'(2x,a,a1,L20)')formatSTR('Constant Flow Rate Hypothesis',.false.,lc),'|',const_mflux
-  WRITE(6,'(2x,a,a1,es20.7)')formatSTR('Magnitude Of The Bulk Velocity',.false.,lc),'|',magUBar
-  WRITE(6,'(2x,a)')'------------------------------------------------------------------------------'
+  WRITE(*,'(2x,a)')'------------------------------------------------------------------------------'
 
-  WRITE(6,*)' '
-  WRITE(6,'(2x,a)')'Solving For:'
-  WRITE(6,'(2x,a)')'------------------------------------------------------------------------------'
+  WRITE(*,*)' '
+  WRITE(*,'(2x,a)')'Solving For:'
+  WRITE(*,'(2x,a)')'------------------------------------------------------------------------------'
   varnames = ''
   do i =1,NPHI
       if(LCAL(I))then
-          write(len7str,'(a7)')trim(adjustl(chvar(i)))
-          varnames = varnames//len7str
+          write(len8str,'(a1,a7)')'|',trim(adjustl(chvar(i)))
+          varnames = varnames//len8str
       end if
   end do
-  WRITE(6,'(2x,a,a)')'Var.Name    |',varnames
+  WRITE(*,'(2x,a,a)')'Var.Name    ',varnames
   varnames = ''
   do i =1,NPHI
       if(LCAL(I))then
-          write(len7str,'(f7.2)')GDS(i)
-          varnames = varnames//len7str
+          write(len8str,'(a1,f7.2)')'|',GDS(i)
+          varnames = varnames//len8str
       end if
   end do
-  WRITE(6,'(2x,a,a)')'DC.Factor   |',varnames
+  WRITE(*,'(2x,a,a)')'DC.Factor   ',varnames
   varnames = ''
   do i =1,NPHI
       if(LCAL(I))then
-          write(len7str,'(f7.2)')URF(i)
-          varnames = varnames//len7str
+          write(len8str,'(a1,f7.2)')'|',URF(i)
+          varnames = varnames//len8str
       end if
   end do
-  WRITE(6,'(2x,a,a)')'Relax.Factor|',varnames
+  WRITE(*,'(2x,a,a)')'Relax.Factor',varnames
   varnames = ''
   do i =1,NPHI
       if(LCAL(I))then
-          write(len7str,'(f7.2)')SOR(i)*100
-          varnames = varnames//len7str
+          write(len8str,'(a1,f7.2)')'|',SOR(i)*100
+          varnames = varnames//len8str
       end if
   end do
-  WRITE(6,'(2x,a,a)')'Max.Res.%   |',varnames
+  WRITE(*,'(2x,a,a)')'Max.Res.%   ',varnames
   varnames = ''
   do i =1,NPHI
       if(LCAL(I))then
-          write(len7str,'(f7.2)')NSW(i)
-          varnames = varnames//len7str
+          write(len8str,'(a1,f7.2)')'|',NSW(i)
+          varnames = varnames//len8str
       end if
   end do
-  WRITE(6,'(2x,a,a)')'Max.Iters.  |',varnames
-  WRITE(6,'(2x,a)')'------------------------------------------------------------------------------'
+  WRITE(*,'(2x,a,a)')'Max.Iters.  ',varnames
+  WRITE(*,'(2x,a)')'------------------------------------------------------------------------------'
   !
   ! Convective scheme:
   !

@@ -74,9 +74,9 @@ subroutine modify_viscosity_k_omega_sst()
 
     allocate(fsst(numTotal))
 
-    write(*,'(a)') ' '
-    write(*,'(a)') '  **Allocated SST blending function.'
-    write(*,'(a)') ' '
+    !write(*,'(a)') ' '
+    !write(*,'(a)') '  **Allocated SST blending function.'
+    !write(*,'(a)') ' '
     
   endif
 

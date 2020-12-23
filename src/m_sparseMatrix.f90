@@ -206,9 +206,9 @@ subroutine create_CSR_matrix
   nofloat = nofloat+ localfloat
   localint = 2*nnz + 2*numCells + 2*numInnerFaces
   noint = noint +localint
-  write (6,'(2x,a,a1,i20)')formatSTR('Nonzero Coefficients In Sparse Matrix',.false.,lc),'|',nnz
-  write (6,'(2x,a,a1,i20)')formatSTR('Float Array Size For CSR',.false.,lc),'|',localfloat
-  write (6,'(2x,a,a1,i20)')formatSTR('Integer Array Size For CSR',.false.,lc),'|',localint
+  write (*,'(2x,a,a1,i20)')formatSTR('Nonzero Coefficients In Sparse Matrix',.false.,lc),'|',nnz
+  write (*,'(2x,a,a1,i20)')formatSTR('Float Array Size For CSR',.false.,lc),'|',localfloat
+  write (*,'(2x,a,a1,i20)')formatSTR('Integer Array Size For CSR',.false.,lc),'|',localint
 !
 ! >Index arrays of matrix elements stored in CSR format
 !
