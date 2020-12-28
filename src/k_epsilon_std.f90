@@ -7,7 +7,7 @@ module k_epsilon_std
   use geometry
   use variables
   use scalar_fluxes, only: facefluxsc
-  use utils, only: print_log
+  !use utils, only: print_log
 
   implicit none
 

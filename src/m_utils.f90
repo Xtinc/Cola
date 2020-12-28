@@ -19,19 +19,25 @@ public
     Procedure :: Put
   End Type CLS_CMD_Progress
 
-contains
+    contains
+    
 
-subroutine print_log(line)
-!
-! Prints line into log file, separated by blank lines.
-!
-  character (len=*), intent(in) :: line
 
-  write(*,'(a)') ' '
-  write(*,'(a)') line
-  write(*,'(a)') ' '
-
-end subroutine
+function ConverTime(time)
+    implicit none
+    integer,intent(in)::time
+    character(len=16)::ConverTime
+    integer::dd,hh,mm,ss
+    ss=time
+    dd=floor(ss/86400.0d0)
+    hh=ss-86400*dd
+    hh=floor(hh/3600.0d0)
+    mm=ss-86400*dd-3600*hh
+    mm=floor(mm/60.0d0)
+    ss=ss-86400*dd-3600*hh-60*mm
+    write(ConverTime,'(4(i2.2,a1,1x))')dd,'d',hh,'h',mm,'m',ss,'s'
+    
+end function
 
 function formatSTR(inSTR,Left,Length)
 ! 
@@ -905,7 +911,7 @@ subroutine r8vec_print_some ( n, a, i_lo, i_hi, title )
 
   write ( *, '(a)' ) ' '
   do i = max ( i_lo, 1 ), min ( i_hi, n )
-    write ( *, '(2x,i8,2x,g14.8)' ) i, a(i)
+    write ( *, '(2x,i8,2x,g14.7)' ) i, a(i)
   end do
 
   return

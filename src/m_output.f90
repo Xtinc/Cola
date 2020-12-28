@@ -262,6 +262,7 @@ subroutine vtm_write_scalar_field ( scalar_name, scalar_field, timechar )
 !
 ! Writes scalar field data to Paraview XML, unstructured, ".vtu" file.
 !
+  use ifport, only:MAKEDIRQQ
   implicit none
 
   character( len = * ), intent(in) :: scalar_name, timechar
@@ -279,11 +280,13 @@ subroutine vtm_write_scalar_field ( scalar_name, scalar_field, timechar )
   integer :: output_unit, cells_file, faces_file
   integer :: nnodes
   integer, dimension(8) :: node
+  logical :: err
 
   ! Open folder with data for postprocessing in Paraview
-  ! call execute_command_line("mkdir VTK")
-  call execute_command_line("mkdir VTK\"//trim( timechar ) )
-  call execute_command_line("mkdir VTK\"//trim( timechar )//"\boundary")  
+  ! if dir exists , err get .false. it doesn't. just override files.
+  err = MAKEDIRQQ('vtk\'//trim(timechar))
+  err = MAKEDIRQQ('vtk\'//trim(timechar)//'\boundary')
+
 
 !
 ! > Open and write a .vtm file for multi-block datasets for interior + boundary regions data.

@@ -17,7 +17,7 @@ program cola
   use temperature
   use concentration
   use mhd
-  use utils, only: timestamp,CLS_CMD_Progress,CMD_PROGRESS_ABSOLUTE,WriteHead
+  use utils, only: timestamp,CLS_CMD_Progress,CMD_PROGRESS_ABSOLUTE,WriteHead,ConverTime
 
   implicit none
 
@@ -37,6 +37,7 @@ program cola
 ! Print logo in the header of monitor file
   call WriteHead
   call timestamp
+  
   
 ! Check command line arguments
 ! narg=command_argument_count()
@@ -132,7 +133,7 @@ program cola
       ! Log scaled residuals
       write(6,'(2x,a)') 'Scaled residuals:'
       write(6,'(2x,11(a,4x))')     (chvarSolver(k), k=1,nphi)
-      write(6,'(a,11(1PE9.3,2x))') '> ',(resor(k), k=1,nphi)
+      write(6,'(a,11(1PE9.2,2x))') '> ',(resor(k), k=1,nphi)
 
       call cpu_time(finish)
       write(timechar,'(f9.5)') finish-start
@@ -205,15 +206,14 @@ program cola
   if(.not.fulloop)then
       write(*,*)''
       if(diverge)then
-          write(*,"(2x,a,I0,1x,a)") "Program Terminated -  Iterations Diverge, ", INT(t_end - t_start), ' SECONDS OF CPU TIME CONSUMED.'
+          write(*,"(2x,a,a,a)") "Program Terminated -  Iterations Diverge, ", ConverTime(INT(t_end - t_start)), 'SECONDS OF CPU TIME CONSUMED.'
       end if
       
   else
-      write(*,'(2x,a,I0,1x,a)')'Mission Complete, ', INT(t_end - t_start), ' SECONDS OF CPU TIME CONSUMED.'
+      write(*,'(2x,a,a,a)')'Mission Complete, ', ConverTime(INT(t_end - t_start)), 'CPU Time Consumed.'
   end if
   WRITE(*,'(2x,a)') '------------------------------------------------------------------------------'
 
   call timestamp
   
-  pause
 end program

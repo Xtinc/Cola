@@ -10,6 +10,7 @@ subroutine writefiles
 !
 !***********************************************************************
 !
+  use ifport, only:MAKEDIRQQ
   use types
   use parameters
   use title_mod
@@ -34,14 +35,16 @@ subroutine writefiles
   integer :: stat
   integer :: iWall
   integer :: output_unit, mesh_file
+  logical :: err
 
  ! Write in a char variable current timestep number and create a folder with this name
   call i4_to_s_left ( itime, timechar )  
 
   ! Open folder with data for postprocessing in Paraview
-  call execute_command_line('mkdir vtk\'//trim( timechar ) )
-  call execute_command_line('mkdir vtk\'//trim( timechar )//'\boundary')  
-
+  ! if dir exists , err get .false. it doesn't. just override files.
+  err = MAKEDIRQQ('vtk\'//trim(timechar))
+  err = MAKEDIRQQ('vtk\'//trim(timechar)//'\boundary')
+  
 !
 ! > Open and write a .vtm file for multi-block datasets for interior + boundary regions data.
 !

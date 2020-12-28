@@ -191,9 +191,9 @@ subroutine init
 
   if( TurbModel == 3 .or. TurbModel == 4 ) then
 
-    write(*,*) ' '
-    write(*,*) ' Calculate distance to the nearest wall:'
-    write(*,*) ' '
+    !write(*,*) ' '
+    !write(*,*) ' Calculate distance to the nearest wall:'
+    !write(*,*) ' '
 
     ! Source term
     su(1:numCells) = -Vol(1:numCells)
