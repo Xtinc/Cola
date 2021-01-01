@@ -1121,8 +1121,8 @@ Subroutine Put( this , K , bAbsol )
     br = char(10)
   end if
   !write( * , '(5a,f6.2,2a)',advance="no") trim(this%Prefix) , '[' , &
-  write( * , '(5a,f6.2,2a,$)') trim(this%Prefix) , '|' , & 
-    repeat(this%M , jm ) , repeat( this%O , this%lens-jm ) , '|' , this%i*100.0/this%N , "%" , br
+  write( * , '(5a,f6.2,2a,a,$)') trim(this%Prefix) , '|' , & 
+    repeat(this%M , jm ) , repeat( this%O , this%lens-jm ) , '|' , this%i*100.0/this%N , "%" ,' ', br
 End Subroutine Put
 
 subroutine WriteHead()

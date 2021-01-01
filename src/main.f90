@@ -22,6 +22,8 @@ program cola
   implicit none
 
   integer :: k, ios
+  integer :: total_cycles = 0
+  integer :: local_cycles = 0
   integer :: iter
   integer :: itimes, itimee
   real(dp):: source
@@ -36,25 +38,10 @@ program cola
 !
 ! Print logo in the header of monitor file
   call WriteHead
-  call timestamp
-  
-  
-! Check command line arguments
-! narg=command_argument_count()
-  call get_command_argument(1,input_file)
-  call get_command_argument(2,restart_file)
-  call get_command_argument(3,monitor_file)
+  call timestamp  
+  call read_input_file
 
-  ! Open simulation log file or Print.
-  if(len_trim(monitor_file).NE.0)then
-    open(unit=6,file=monitor_file,iostat=ios)
-    if(ios.EQ.0)then
-        rewind 6
-    endif
-  else
-      write(*,'(2x,a)')'Null Arguments For Monitor£¡'
-      stop
-  endif
+  open(unit=6,file=monitor_file,iostat=ios)
 
   ! Record start time.
   call cpu_time(t_start)
@@ -62,7 +49,6 @@ program cola
 !-----------------------------------------------------------
 !  Initialization, mesh definition, sparse matrix allocation
 !-----------------------------------------------------------
-  call read_input_file
 
   call read_mesh
 
@@ -78,8 +64,8 @@ program cola
   !===============================================
   
   itimes = itime+1
-  itimee = itime+numstep
-  checkcycle = ceiling(itime+0.05d0*numstep)
+  itimee = numstep
+  checkcycle = ceiling(itime+0.05*numstep)
   !we won't check res in first 5% cycle
   
   WRITE(*,*)''
@@ -87,10 +73,12 @@ program cola
   WRITE(*,'(2x,a)') '------------------------------------------------------------------------------'
 
   time_loop: do itime=itimes,itimee
+    
+    total_cycles=total_cycles+local_cycles  
+    
     !ProgressBar
     call Progress%Set( N = numstep , L = 60 )        
     call Progress%Put(itime,CMD_PROGRESS_ABSOLUTE)
-
     ! Update variables - shift in time: 
     call time_shift
    
@@ -101,7 +89,9 @@ program cola
     call CourantNo
     
     iteration_loop: do iter=1,maxit 
-
+        
+      local_cycles=iter
+  
       write(6,'(2(2x,a,i0))') 'Timestep: ',itime,',Iteration: ',iter
 
       call cpu_time(start)
@@ -129,11 +119,9 @@ program cola
 
       if(lcal(iep))  call calculate_electric_potential
 
-     
-      ! Log scaled residuals
-      write(6,'(2x,a)') 'Scaled residuals:'
-      write(6,'(2x,11(a,4x))')     (chvarSolver(k), k=1,nphi)
-      write(6,'(a,11(1PE9.2,2x))') '> ',(resor(k), k=1,nphi)
+      call RecordRes(total_cycles+iter)
+      
+      if(EnableMenu) call exec_menu(total_cycles+iter)
 
       call cpu_time(finish)
       write(timechar,'(f9.5)') finish-start
@@ -154,16 +142,7 @@ program cola
           exit time_loop
       endif
 
-      ! If residuals fall to level below tolerance level - simulation is finished.
-      if( .not.ltransient .and. source.lt.sormax ) then
-        call write_restart_files
-        call writefiles
-        fulloop=.false.
-        exit time_loop
-      end if
-
       if(ltransient) then 
-
         ! Has converged within timestep or has reached maximum no. of SIMPLE iterations per timetstep:
         if( source.lt.sormax .or. iter.ge.maxit ) then 
 
@@ -181,28 +160,37 @@ program cola
             call write_restart_files
             call writefiles
           endif
-
-          cycle time_loop
-       
+          exit iteration_loop   
         endif
-
+      else
+          ! If residuals fall to level below tolerance level - simulation is finished.
+          if(source.lt.sormax)then
+              call write_restart_files
+              call writefiles
+              fulloop=.false.
+              exit time_loop
+          end if
+          
       end if 
 
     end do iteration_loop
 
-    ! Write field values after nzapis iterations or at the end of false-time-stepping simulation:
-    if(.not.ltransient .and. ( mod(itime,nzapis).eq.0 .or. (itime-itimes+1).eq.numstep ) ) then
-      call write_restart_files
-      call writefiles
-    endif
-
-    if(ltransient) call flush(6)
-
+    if(ltransient) then
+        call flush(6)
+    else
+        ! Write field values after nzapis iterations or at the end of false-time-stepping simulation:
+        if(mod(itime,nzapis).eq.0 .or. (itime-itimes+1).eq.numstep)then
+            call write_restart_files
+            call writefiles
+        end if
+    end if    
+    
   end do time_loop
   
 
   ! Stop Record. give cpu time used.
   call cpu_time(t_end)
+  
   if(.not.fulloop)then
       write(*,*)''
       if(diverge)then
@@ -212,8 +200,38 @@ program cola
   else
       write(*,'(2x,a,a,a)')'Mission Complete, ', ConverTime(INT(t_end - t_start)), 'CPU Time Consumed.'
   end if
+  
   WRITE(*,'(2x,a)') '------------------------------------------------------------------------------'
 
   call timestamp
   
 end program
+    
+        
+subroutine RecordRes(iter)
+    use title_mod
+    use parameters,only:resor,nphi
+    use variables,only:plt
+    
+    implicit none
+    integer,intent(in)::iter
+    integer::k,m
+    
+    m=0
+    ! Log scaled residuals
+    write(6,'(2x,a)') 'Scaled residuals:'
+    write(6,'(2x,11(a,4x))')     (chvarSolver(k), k=1,nphi)
+    write(6,'(a,11(1PE9.2,2x))') '> ',(resor(k), k=1,nphi)
+    
+    ! get Residual for plot
+    if(iter.gt.plt%NominalSize())then
+        call plt%Resize
+    end if
+    if(mod(iter-1,2**plt%Level).eq.0)then
+        m=(iter-1)/2**plt%Level
+        do k=1,plt%col()
+            plt%arraytmp(m+1,k)=resor(k)
+        end do
+    end if
+    
+end subroutine

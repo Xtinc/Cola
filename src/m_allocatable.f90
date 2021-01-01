@@ -122,6 +122,10 @@ module parameters
   real(dp), dimension(nphi) :: urfm      ! 1-urf
   real(dp), dimension(nphi) :: gds       ! Gamma blending factor [0,1] for deffered correction for convection terms: uds + gds*(uhigh-uds), 0-UDS, 1-Higher order diff.scheme
 
+  !menu control hardcoded
+  logical :: EnableMenu=.true.
+  integer :: Gnuplotpoints = 1250
+  
 end module parameters
 
 module variables
@@ -183,7 +187,73 @@ module variables
 
     real(dp), dimension(:), allocatable :: magStrain          ! Strain magnitude
     real(dp), dimension(:), allocatable :: Vorticity          ! Vorticity magnitude
-
+    
+    type :: PlotArray
+        integer,private::ArraySize=10000
+        integer,private::ArrayCol=11
+        integer,public ::Level =0                             ! hardcoded now
+        real,dimension(:,:),allocatable:: arraytmp           ! for plot
+    contains
+        procedure::NominalSize
+        procedure::setSize
+        procedure::ReSize
+        procedure::Row
+        procedure::Col
+        procedure::Mealloc
+        procedure::Dealloc
+    end type
+    type(PlotArray)::plt
+    contains
+    
+    function NominalSize(this)
+    class(plotArray)::this
+    integer::NominalSize
+    NominalSize=this%ArraySize*2**this%Level
+    end function
+    
+    subroutine setSize(this,M,N)
+    class(PlotArray)::this
+    integer,intent(in)::M,N
+    this%ArraySize=min(this%ArraySize,M)
+    this%ArrayCol=min(this%ArrayCol,N)
+    end subroutine
+    
+    subroutine ReSize(this)
+    class(PlotArray)::this
+    integer::i,j
+    real,dimension(this%ArraySize)::tmp
+    do j=1,this%ArrayCol
+        tmp=0.0
+        do i=1,floor(this%ArraySize/2.0)
+            tmp(i)=this%arraytmp(2*i-1,j)
+        end do
+        this%arraytmp(:,j)=tmp(:)
+    end do
+    this%Level=this%Level+1
+    end subroutine
+    
+    function Row(this)
+    class(PlotArray)::this
+    integer::Row
+    Row=this%ArraySize
+    end function
+    
+    function Col(this)
+    class(PlotArray)::this
+    integer::Col
+    Col=this%ArrayCol
+    end function
+    
+    subroutine Mealloc(this)
+    class(PlotArray)::this
+    allocate(this%arraytmp(this%ArraySize,this%ArrayCol))
+    end subroutine
+    
+    subroutine Dealloc(this)
+    class(PlotArray)::this
+    deallocate(this%arraytmp)
+    end subroutine
+    
 end module variables
 
 
@@ -199,7 +269,7 @@ use parameters, only: nphi
   (/'  U ', '  V ', '  W ', '  P ',' TE ', ' ED ', '  T ', ' VIS', 'VART', ' CON', 'EPOT' /)
   character(len=7), dimension(nphi) ::  chvarSolver = &
   (/'U      ','V      ','W      ','p      ','k      ','epsilon','Temp   ','Visc   ','VarTemp','Conc   ','Epot   ' /)
-  character(len=100):: input_file,inlet_file,grid_file,monitor_file,restart_file
+  character(len=100):: inlet_file,grid_file,monitor_file,restart_file
     contains
     
   function judge_convection_scheme(scheme)

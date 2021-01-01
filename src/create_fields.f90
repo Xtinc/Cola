@@ -21,6 +21,10 @@ subroutine create_fields
   integer :: ierr 
   integer :: localreal
   real(dp):: totalnumsize
+  
+  !plot array hardcoded
+  call plt%setsize(gnuplotpoints,4)
+  call plt%mealloc()
 
   ! Velocities 
   allocate(u(numTotal),stat=ierr) 

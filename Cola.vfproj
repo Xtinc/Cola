@@ -15,7 +15,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Debug|x64">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" WarnInterfaces="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" InitArrays="true" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtMultiThreadedDebugDLL" UseMkl="mklSequential"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" WarnInterfaces="true" LocalSavedScalarsZero="true" InitArrays="true" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtMultiThreadedDebugDLL" UseMkl="mklSequential"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalYes" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemConsole"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -35,7 +35,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|x64">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" MultiProcessorCompilation="true" Parallelization="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" InitArrays="true" UseMkl="mklSequential"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" MultiProcessorCompilation="true" Optimization="optimizeFull" Parallelization="true" BufferedIO="true" InterproceduralOptimizations="ipoMultiFile" LocalSavedScalarsZero="true" InitArrays="true" UseMkl="mklParallel"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" SubSystem="subSystemConsole"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -65,6 +65,7 @@
 		<File RelativePath=".\src\CourantNo.f90"/>
 		<File RelativePath=".\src\create_fields.f90"/>
 		<File RelativePath=".\src\dpcg.f90"/>
+		<File RelativePath=".\src\exec_menu.f90"/>
 		<File RelativePath=".\src\faceflux_mass.f90"/>
 		<File RelativePath=".\src\gauss-seidel.f90"/>
 		<File RelativePath=".\src\iccg.f90"/>
@@ -82,10 +83,12 @@
 		<File RelativePath=".\src\linear_solvers.f90"/>
 		<File RelativePath=".\src\m_allocatable.f90"/>
 		<File RelativePath=".\src\m_concentration.f90"/>
+		<File RelativePath=".\src\m_config.f90"/>
 		<File RelativePath=".\src\m_facefluxVelocity.f90"/>
 		<File RelativePath=".\src\m_fieldInitialization.f90"/>
 		<File RelativePath=".\src\m_fieldManipulation.f90"/>
 		<File RelativePath=".\src\m_geometry.f90"/>
+		<File RelativePath=".\src\m_gnuplot.f90"/>
 		<File RelativePath=".\src\m_gradients.f90"/>
 		<File RelativePath=".\src\m_interpolation.f90"/>
 		<File RelativePath=".\src\m_matrix.f90"/>

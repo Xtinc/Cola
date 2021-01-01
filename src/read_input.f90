@@ -13,6 +13,7 @@ subroutine read_input_file
   use interpolation
   use title_mod
   use utils, only: formatSTR,rc1,rc2,lc
+  use m_config
 
   implicit none
 
@@ -21,48 +22,189 @@ subroutine read_input_file
   character(len=25) :: convective_scheme
   character(len=:), allocatable :: varnames
   character(len=8) :: len8str
+  type(CFG_t) :: my_cfg
+  logical::LCONTROL(3) = .false.
+  real(dp)::GRAVITY(3) = 0.0_DP
+  character(30)::inputstr = ''
 !
 !***********************************************************************
 !
-
-  OPEN(UNIT=5,FILE=input_file,status='old')
-! on *inx platform, open function will creat a new file with given name 
-! whether state specified. Maybe it has more relations with gcc. But now
-! status quo. 
-  REWIND 5
-
-  READ(5,'(a)') TITLE
-  READ(5,'(a)') mesh_format 
-  READ(5,*) LREAD,LWRITE,LTEST
-  READ(5,*) (LCAL(I),I=1,NPHI)
-  READ(5,*) monCell,pRefCell,MPoints
-  READ(5,*) SLARGE,SORMAX
-  READ(5,*) DENSIT,VISCOS
-  READ(5,*) PRANL,TREF,BETA
-  READ(5,*) LBUOY,GRAVX,GRAVY,GRAVZ,BOUSSINESQ
-  READ(5,*) roughWall,EROUGH,ZZERO
-  READ(5,*) FACNAP,FACFLX
-  READ(5,*) LTRANSIENT,BDF,BDF2,BDF3,CN
-  READ(5,*) LEVM,LASM,LLES
-  READ(5,*) LSGDH,LGGDH,LAFM
-  READ(5,*) TurbModel
-  READ(5,*) convective_scheme
-  READ(5,*) limiter
-  READ(5,*) (GDS(I),I=1,NPHI)
-  READ(5,*) (URF(I),I=1,NPHI)
-  READ(5,*) (SOR(I),I=1,NPHI)
-  READ(5,*) (NSW(I),I=1,NPHI)
-  READ(5,*) NUMSTEP,TIMESTEP,NZAPIS,MAXIT
-  READ(5,*) lstsq, lstsq_qr, lstsq_dm, gauss
-  READ(5,*) NPCOR, NIGRAD
-  READ(5,*) SIMPLE,PISO,ncorr
-  READ(5,*) const_mflux,magUBar
-  READ(5,*) CoNumFix, CoNumFixValue
+  
+  CALL CFG_ADD(MY_CFG,"TITLE","LAMINAR","TITLE")
+  CALL CFG_ADD(MY_CFG,"MESHFORMAT","NATIVEMESH","FOAMMESH/NATIVEMESH")
+  CALL CFG_ADD(MY_CFG,"LCONTROL",[.FALSE.,.TRUE.,.FALSE.],"READ RESTART FILE/WRITE RESTART FILE/PRINT LINEAR SOLVER RESIDUAL", dynamic_size=.true.)
+  CALL CFG_ADD(MY_CFG,"LCAL",[.TRUE.,.TRUE.,.TRUE.,.TRUE.,.FALSE.,.FALSE.,.FALSE.,.FALSE.,.FALSE.,.FALSE.,.FALSE.],"SOLVING FOR U V W P...", dynamic_size=.true.)
+  CALL CFG_ADD(MY_CFG,"MONCELL",1,"MONITOR CELL")
+  CALL CFG_ADD(MY_CFG,"PREFCELL",1,"PRESSURE REFERENCE CELL")
+  CALL CFG_ADD(MY_CFG,"IPREFPROCESSMPOINTS",0,"MONITOR CELL NUMBER")
+  CALL CFG_ADD(MY_CFG,"SLARGE",1.0_DP,"DIVERGENCE RESIDUAL")
+  CALL CFG_ADD(MY_CFG,"SORMAX",0.01_DP,"CONVERGENCE RESIDUAL")
+  CALL CFG_ADD(MY_CFG,"DENSIT",1.0_DP,"DENSITY")
+  CALL CFG_ADD(MY_CFG,"VISCOS",0.00001_DP,"DYNAMIC VISCOSITY")
+  CALL CFG_ADD(MY_CFG,"PRANL",0.71_DP,"PRANDTL NUMBER")
+  CALL CFG_ADD(MY_CFG,"TREF",20.0_DP,"REFERENCE TEMPERATURE")
+  CALL CFG_ADD(MY_CFG,"BETA",0.0001_DP,"THERMAL EXPANSION COEFFICIENT")
+  CALL CFG_ADD(MY_CFG,"LBUOY",.FALSE.,"BOUYANCY EFFECTS IN MOMENTUM & TURBULENCE EQUATIONS")
+  CALL CFG_ADD(MY_CFG,"GRAVITY",[0.0_DP,-9.81_DP,0.0_DP],"GRAVITY")
+  CALL CFG_ADD(MY_CFG,"BOUSSINESQ",.TRUE.,"BOUSSINESQ HYPOTHESIS")
+  CALL CFG_ADD(MY_CFG,"FACNAP",1.0_DP,"UNDERELAXATION FACTOR FOR REYNOLDS STRESSES")
+  CALL CFG_ADD(MY_CFG,"FACFLX",1.0_DP,"UNDERELAXATION FACTOR FOR TURBULENT HEAT FLUXES")
+  CALL CFG_ADD(MY_CFG,"LTRANSIENT",.TRUE.,"TRANSIENT")
+  CALL CFG_ADD(MY_CFG,"TEMPROAL","BDF","TEMPROAL SCHEME")
+  CALL CFG_ADD(MY_CFG,"TURBMODEL1","NONE","LEVM/LASM/LLES")
+  CALL CFG_ADD(MY_CFG,"TURBMODEL2",0,"TURBMODEL2")
+  CALL CFG_ADD(MY_CFG,"TURBGRAD","NONE","LSGDH/LGGDH/LAFM/NONE")
+  CALL CFG_ADD(MY_CFG,"CONVECTIVESCHEME","LINEARUPWIND","LINEARUPWIND/")
+  CALL CFG_ADD(MY_CFG,"GRADIENTLIMITER","NONE","VENKATAKRISHNAN/NONE")
+  CALL CFG_ADD(MY_CFG,"GDS",[1.0_DP,1.0_DP,1.0_DP,0.0_DP,0.0_DP,0.0_DP,0.0_DP,0.0_DP,0.0_DP,0.0_DP,0.0_DP],"GAMMA BLENDING FACTOR [0,1] FOR DEFFERED CORRECTION FOR CONVECTION TERMS", dynamic_size=.true.)
+  CALL CFG_ADD(MY_CFG,"URF",[1.0_DP,1.0_DP,1.0_DP,1.0_DP,0.0_DP,0.0_DP,0.0_DP,0.0_DP,0.0_DP,0.0_DP,0.0_DP],"UNDERRELAXATION FACTOR", dynamic_size=.true.)
+  CALL CFG_ADD(MY_CFG,"SOR",[0.001_DP,0.001_DP,0.001_DP,0.00001_DP,0.001_DP,0.001_DP,0.001_DP,0.001_DP,0.001_DP,0.001_DP,0.001_DP],"TOLERANCE LEVEL FOR RESIDUAL IN LINEAR SOLVER FOR EACH VARIABLE", dynamic_size=.true.)
+  CALL CFG_ADD(MY_CFG,"NSW",[5,5,5,100,10,10,5,5,5,5,5],"NUMBER OF ALLOWED ITERATIONS IN LINEAR SOLVER FOR EACH VARIABLE", dynamic_size=.true.)
+  CALL CFG_ADD(MY_CFG,"NUMSTEP",1000,"NUMSTEP")
+  CALL CFG_ADD(MY_CFG,"TIMESTEP",0.001_DP,"TIMESTEP")
+  CALL CFG_ADD(MY_CFG,"NZAPIS",100,"RECORD RESULT EVERY NZAPIS CYCLES")
+  CALL CFG_ADD(MY_CFG,"MAXIT",5,"MAXIMUM NUMBER OF ITERATIONS IN TIMESTEP")
+  CALL CFG_ADD(MY_CFG,"GRADIENTRECONSTRUCTION","GAUSS","LSTSQ/GAUSS")
+  CALL CFG_ADD(MY_CFG,"NPCOR",1,"NO. OF PRESSURE-CORRECTIONS; NON-ORTHOGONALITY CORRECTORS")
+  CALL CFG_ADD(MY_CFG,"NIGRAD",2,"NO. OF ITERS. FOR ITERATIVE CELL-CENTERED GRADIENT CALCULATION")
+  CALL CFG_ADD(MY_CFG,"PVCOUPLE","PISO","PVCOUPLE")
+  CALL CFG_ADD(MY_CFG,"NCORR",1,"PISO CONTROL PARAMETER: NO. OF PISO CORRECTIONS")
+  CALL CFG_ADD(MY_CFG,"CONSTMFLUX",.FALSE.,"CONTROL FOR CONSTANT FLOW RATE")
+  CALL CFG_ADD(MY_CFG,"MAGUBAR",0.0_DP,"MAGNITUDE OF THE BULK VELOCITY")
+  CALL CFG_ADD(MY_CFG,"CONUMFIX",.TRUE.,"FIXED VALUE FOR COURANT NUMBER")
+  CALL CFG_ADD(MY_CFG,"CONUMFIXVALUE",1.0_DP,"COURANT NUMBER")
+  CALL CFG_ADD(MY_CFG,"ENABLEMENU",.TRUE.,"ENABLE MENU INVOKED BY KEYBOARD WHEN PROGRAM RUNS")
+  CALL CFG_ADD(MY_CFG,"GNUPLOTPOINTS",1250,"MAX SAMPLE POINTS FOR GNUPLOT WHEN PLOTTING RESIDUAL")
+  CALL CFG_ADD(MY_CFG,"MONITORFILE","MONITOR","MONITOR FILE NAME")
+  CALL CFG_ADD(MY_CFG,"RESTARTFILE","RESTART","RESTART FILE NAME")
+  
+  call CFG_read_file(my_cfg,"cola_settings.ini")
+  call CFG_update_from_arguments(my_cfg)
+  
+  call CFG_get(my_cfg,"TITLE",TITLE)
+  call CFG_get(my_cfg,"MESHFORMAT",mesh_format)
+  call CFG_get_dynamic(my_cfg,"LCONTROL",LCONTROL)
+  LREAD =LCONTROL(1)
+  LWRITE=LCONTROL(2)
+  LTEST =LCONTROL(3)
+  call CFG_get_dynamic(my_cfg,"LCAL",LCAL)
+  call CFG_get(my_cfg,"MONCELL",monCell)
+  call CFG_get(my_cfg,"PREFCELL",pRefCell)
+  call CFG_get(my_cfg,"IPREFPROCESSMPOINTS",MPoints)
+  call CFG_get(my_cfg,"SLARGE",SLARGE)
+  call CFG_get(my_cfg,"SORMAX",SORMAX)
+  call CFG_get(my_cfg,"DENSIT",DENSIT)
+  call CFG_get(my_cfg,"VISCOS",VISCOS)
+  call CFG_get(my_cfg,"PRANL",PRANL)
+  call CFG_get(my_cfg,"TREF",TREF)
+  call CFG_get(my_cfg,"BETA",BETA)
+  call CFG_get(my_cfg,"LBUOY",LBUOY)
+  call CFG_get_dynamic(my_cfg,"GRAVITY",GRAVITY)
+  GRAVX=GRAVITY(1)
+  GRAVY=GRAVITY(2)
+  GRAVZ=GRAVITY(3)
+  call CFG_get(my_cfg,"BOUSSINESQ",BOUSSINESQ)
+  call CFG_get(my_cfg,"FACNAP",FACNAP)
+  call CFG_get(my_cfg,"FACFLX",FACFLX)
+  call CFG_get(my_cfg,"LTRANSIENT",LTRANSIENT)
+  BDF=.false.
+  BDF2=.false.
+  BDF3=.false.
+  CN=.false.
+  call CFG_get(my_cfg,"TEMPROAL",inputstr)
+  select case (trim(adjustl(inputstr)))
+  case('BDF')
+      BDF=.true.
+  case('BDF2')
+      BDF2=.true.
+  case('BDF3')
+      BDF3=.true.
+  case('CN')
+      CN=.true.
+  case default
+      BDF=.true.
+  end select
+  LEVM=.false.
+  LASM=.false.
+  LLES=.FALSE.
+  call CFG_get(my_cfg,"TURBMODEL1",inputstr)
+  select case (trim(adjustl(inputstr)))
+  case('LEVM')
+      LEVM=.TRUE.
+  case('LASM')
+      LASM=.TRUE.
+  case('LLES')
+      LLES=.TRUE.
+  case default
+  end select
+  LSGDH=.false.
+  LGGDH=.false.
+  LAFM=.false.
+  call CFG_get(my_cfg,"TURBGRAD",inputstr)
+  select case (trim(adjustl(inputstr)))
+  case('LSGDH')
+      LSGDH=.TRUE.
+  case('LGGDH')
+      LGGDH=.TRUE.
+  case('LAFM')
+      LAFM=.TRUE.
+  case default
+  end select
+  call CFG_get(my_cfg,"TURBMODEL2",TurbModel)
+  call CFG_get(my_cfg,"CONVECTIVESCHEME",inputstr)
+  convective_scheme = judge_convection_scheme(inputstr)
+  call CFG_get(my_cfg,"GRADIENTLIMITER",inputstr)
+  limiter = judge_convection_limiter(inputstr)
+  call CFG_get_dynamic(my_cfg,"GDS",GDS)
+  call CFG_get_dynamic(my_cfg,"URF",URF)
+  call CFG_get_dynamic(my_cfg,"SOR",SOR)
+  call CFG_get_dynamic(my_cfg,"NSW",NSW)
+  call CFG_get(my_cfg,"NUMSTEP",NUMSTEP)
+  call CFG_get(my_cfg,"TIMESTEP",TIMESTEP)  
+  call CFG_get(my_cfg,"NZAPIS",NZAPIS)  
+  call CFG_get(my_cfg,"MAXIT",MAXIT)  
+  lstsq=.false.
+  lstsq_qr=.false.
+  lstsq_dm=.false.
+  gauss=.false.
+  call CFG_get(my_cfg,"GRADIENTRECONSTRUCTION",inputstr)
+  select case(trim(adjustl(inputstr)))
+  case('lstsq')
+      lstsq=.true.
+  case('lstsq_qr')
+      lstsq_qr=.true.
+  case('lstsq_dm')
+      lstsq_dm=.true.
+  case('gauss')
+      gauss=.true.
+  case default
+      gauss=.true.
+  end select
+  call CFG_get(my_cfg,"NPCOR",NPCOR)  
+  call CFG_get(my_cfg,"NIGRAD",NIGRAD) 
+  SIMPLE=.false.
+  PISO=.false.
+  call CFG_get(my_cfg,"PVCOUPLE",inputstr)
+  select case(trim(adjustl(inputstr)))
+  case('SIMPLE')
+      SIMPLE=.true.
+  case('PISO')
+      PISO=.true.
+  case default
+      PISO=.true.
+  end select
+  call CFG_get(my_cfg,"NCORR",ncorr)
+  call CFG_get(my_cfg,"CONSTMFLUX",const_mflux)
+  call CFG_get(my_cfg,"MAGUBAR",magUBar)
+  call CFG_get(my_cfg,"CONUMFIX",CoNumFix)  
+  call CFG_get(my_cfg,"CONUMFIXVALUE",CoNumFixValue)   
+  call CFG_get(my_cfg,"ENABLEMENU",EnableMenu)
+  call CFG_get(my_cfg,"GNUPLOTPOINTS",GNUPLOTPOINTS)
+  call CFG_get(my_cfg,"MONITORFILE",monitor_file)
+  call CFG_get(my_cfg,"RESTARTFILE",restart_file)
 !.END: READ INPUT FILE.............................................!
-  CLOSE (5)
-!.Check the input.  
-  convective_scheme = judge_convection_scheme(convective_scheme)
-  limiter = judge_convection_limiter(limiter)
+
+
 !.Create an input file reading log:
   WRITE(*,'(2x,a)') formatSTR('Input log:',.false.,lc)
   WRITE(*,'(2x,a)')     '------------------------------------------------------------------------------'
@@ -218,6 +360,8 @@ subroutine read_input_file
   end do
   WRITE(*,'(2x,a,a)')'Max.Iters.  ',varnames
   WRITE(*,'(2x,a)')'------------------------------------------------------------------------------'
+  
+  call CFG_write(my_cfg, "cola_settings.ini")
   !
   ! Convective scheme:
   !
