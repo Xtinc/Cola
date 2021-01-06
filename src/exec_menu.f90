@@ -45,9 +45,9 @@ subroutine Exec_Menu(Iter)
                 do i=1,maxsize
                     x(i)=(i-1)*2**plt%Level+1.0
                 end do
-                call gp%title('Relative Residual')
+                call gp%title('Normalization Residual')
                 call gp%xlabel('Iters')
-                call gp%ylabel('Res%')
+                call gp%ylabel('Residual')
                 call gp%options('set key top right')
                 call gp%options('set autoscale fix')
                 call gp%options('set format y "%0.1e"')
@@ -97,7 +97,7 @@ subroutine Exec_Menu(Iter)
                 
             WRITE(*,'(2x,a)') '------------------------------------------------------------------------------'
         end if
+        kbstat=0
     endif
-    kbstat=0
     
 end subroutine Exec_Menu

@@ -69,6 +69,8 @@ module parameters
   ! Mesh format type
   !
   character( len=10 ) :: mesh_format
+  character(len = 20) :: linear_solver
+  character(len = 20) :: symmetry_linear_solver
 
   !
   ! Timesteping control
@@ -363,6 +365,35 @@ use parameters, only: nphi
       judge_turbulence_model = 'Smagorinsky SGS.'
     case default
       judge_turbulence_model = 'None'
+    end select
+    return
+  end function
+  
+  function judge_linear_solver(scheme,symmetry)
+  character(len=*),intent(in)::scheme
+  logical,intent(in)::symmetry
+  character(len=20)::judge_linear_solver
+    select case( trim(scheme) ) 
+    case ('gauss-seidel')
+      judge_linear_solver = 'gauss-seidel'
+    case('bicgstab_ilu')
+      judge_linear_solver = 'bicgstab_ilu'
+    case('pmgmres_ilu')
+      judge_linear_solver = 'pmgmres_ilu'
+    case('dcg')
+      if(symmetry)then
+          judge_linear_solver = 'dcg'
+      else
+          judge_linear_solver = 'bicgstab_ilu'
+      end if
+    case('iccg')
+        if(symmetry)then
+          judge_linear_solver = 'iccg'
+        else
+          judge_linear_solver = 'bicgstab_ilu'  
+        end if
+    case default
+      judge_linear_solver = 'bicgstab_ilu'
     end select
     return
   end function

@@ -25,6 +25,7 @@ subroutine init
   use field_initialization
   use output
   use mhd
+  use linear_solvers
 
   implicit none
 
@@ -214,7 +215,8 @@ subroutine init
     nsw(ip) = 500
 
     ! Solve system
-    call iccg(pp,ip) 
+    ! call iccg(pp,ip) 
+    call spsolve(symmetry_linear_solver,pp,su,resor(ip),nsw(ip),1.0E-13_dp,sor(ip),chvarSolver(ip),ltest)
     ! call bicgstab(p,ip) 
     ! call pmgmres_ilu ( numCells, nnz, ioffset, ja, a, diag, p(1:numCells), ip, su, 100, 4, 1e-8, sor(ip) )
     ! write(maxno,'(i5)') nsw(ip)

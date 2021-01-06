@@ -24,9 +24,9 @@ module linear_solvers
 !    This code is distributed under the GNU GPL license. 
 !
   use types
-  use parameters
+  use parameters, only: small
   use geometry, only: numCells,numTotal
-  use sparse_matrix, only: nnz, ioffset, ja, a, diag
+  use sparse_matrix, only: nnz, ioffset, a, ja, diag
 
   implicit none
 
@@ -35,7 +35,7 @@ module linear_solvers
 contains
 
 
-subroutine spsolve(solver, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar)
+subroutine spsolve(solver, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar,verbose)
 !
 !  Purpose:
 !   Main routine for solution of sparse linear systems, adjusted to use global variables of freeCappuccino.
@@ -55,23 +55,25 @@ subroutine spsolve(solver, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar)
   real(dp), intent(in) :: tol_abs                     ! Absolute tolerance level for residual
   real(dp), intent(in) :: tol_rel                     ! Relative tolerance level for residual
   character( len=* ), intent(in) :: chvar             ! Character string containing name of the solved field, printed on stdout
+  logical :: verbose                                  ! Print linear solver process
+  real(dp)::factor
 
 
   if( solver .eq. 'gauss-seidel') then
 
-    call GaussSeidel( numCells, nnz, ioffset, ja, a, diag, fi(1:numCells), rhs, res0, itr_max, tol_abs, tol_rel, chvar, ltest )
+    call m_GaussSeidel( numCells, nnz, ioffset, ja, a, diag, fi(1:numCells), rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
 
   elseif( solver .eq. 'dcg' ) then
 
-    call dpcg( numCells, nnz, ioffset, ja, a, diag, fi(1:numCells), rhs, res0, itr_max, tol_abs, tol_rel, chvar, ltest )
+    call m_dpcg( numCells, nnz, ioffset, ja, a, diag, fi(1:numCells), rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
 
   elseif( solver .eq. 'iccg' ) then 
 
-    call iccg( numCells, nnz, ioffset, ja, a, diag, fi(1:numCells), rhs, res0, itr_max, tol_abs, tol_rel, chvar, ltest )
+    call m_iccg( numCells, nnz, ioffset, ja, a, diag, fi(1:numCells), rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
 
   elseif( solver .eq. 'bicgstab_ilu' ) then  
 
-    call bicgstab( numCells, nnz, ioffset, ja, a, diag, fi(1:numCells), rhs, res0, itr_max, tol_abs, tol_rel, chvar, ltest ) 
+    call m_bicgstab( numCells, nnz, ioffset, ja, a, diag, fi(1:numCells), rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose ) 
 
   elseif( solver .eq. 'pmgmres_ilu' ) then 
 
@@ -79,17 +81,19 @@ subroutine spsolve(solver, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar)
     ! Here we have hardcoded the restart parameter - m in restarted GMRES algorithm - GMRES(m), to m=4. 
     ! Play with this number if you want, the greaer like m=20, better the convergence, but much more memory is required.
 
-    call pmgmres_ilu( numCells, nnz, ioffset, ja, a, diag, fi(1:numCells), rhs, res0, itr_max, 4, tol_abs, tol_rel, chvar, ltest )
+    call m_pmgmres_ilu( numCells, nnz, ioffset, ja, a, diag, fi(1:numCells), rhs, res0, itr_max, 4, tol_abs, tol_rel, chvar, verbose )
     
   endif
 
-
+  factor = sum( abs( a(diag(1:numCells)) * fi(1:numCells) ))
+  res0 = res0/(factor+small)
+  
 end subroutine
 
 
 !***********************************************************************
 !
-subroutine GaussSeidel( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+subroutine m_GaussSeidel( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
 !
 !***********************************************************************
 !
@@ -151,14 +155,14 @@ subroutine GaussSeidel( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, to
     res0=sum( abs(res) )
 
     if( res0.lt.tol_abs ) then
-      write(*,'(3a,1PE10.3,a,1PE10.3,a)') '  Gauss-Seidel:  Solving for ',trim( chvar ), &
+      write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  Gauss-Seidel:  Solving for ',trim( chvar ), &
       ', Initial residual = ',res0,', Final residual = ',res0,', No Iterations 1'
       return
     endif  
 
   endif
 
-  if( verbose .and. l.eq.1 ) write(*,'(20x,a,1pe10.3)') 'res0 = ',res0  
+  if( verbose .and. l.eq.1 ) write(6,'(20x,a,1pe10.3)') 'res0 = ',res0  
 
   ! L1-norm of residual
   resl = sum( abs(res) )
@@ -169,7 +173,7 @@ subroutine GaussSeidel( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, to
 ! Check convergence
 !
   rsm = resl/(res0+small)
-  if( verbose ) write(*,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvar ),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
+  if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvar ),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
   if( rsm.lt.tol_rel .or. resl.lt.tol_abs ) exit ! Criteria for exiting iterations.
 
 
@@ -179,7 +183,7 @@ subroutine GaussSeidel( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, to
   end do
 
 ! Write linear solver report:
-  write(*,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  Gauss-Seidel:  Solving for ',trim( chvar ), &
+  write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  Gauss-Seidel:  Solving for ',trim( chvar ), &
   ', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used 
 
 end subroutine
@@ -187,7 +191,7 @@ end subroutine
 
 !***********************************************************************
 !
-subroutine dpcg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+subroutine m_dpcg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
 !
 !***********************************************************************
 !
@@ -246,14 +250,14 @@ subroutine dpcg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, 
   res0=sum( abs(res) )
   
     if(res0.lt.tol_abs) then
-      write(*,'(3a,1PE10.3,a,1PE10.3,a)') '  PCG(Jacobi):  Solving for ',trim( chvar ), &
+      write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  PCG(Jacobi):  Solving for ',trim( chvar ), &
       ', Initial residual = ',res0,', Final residual = ',res0,', No Iterations 0'
       return
     endif
 !
 ! If verbose==true, print the norm 
 !
-  if( verbose ) write(*,'(20x,a,1pe10.3)') 'res0 = ',res0
+  if( verbose ) write(6,'(20x,a,1pe10.3)') 'res0 = ',res0
 
   s0=1.e20
 
@@ -318,7 +322,7 @@ subroutine dpcg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, 
 
   rsm = resl/(res0+small) ! Relative residual - current value
 
-  if( verbose ) write(*,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvar) ,' sweep = ',l,' resl = ',resl,' rsm = ',rsm
+  if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvar) ,' sweep = ',l,' resl = ',resl,' rsm = ',rsm
 
   if( rsm.lt.tol_rel .or. resl.lt.tol_abs ) exit ! Criteria for exiting iterations.
 
@@ -328,7 +332,7 @@ subroutine dpcg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, 
   end do
 
 ! Write linear solver report:
-  write(*,'(3a,1PE10.3,a,1PE10.3,a,I0)') &
+  write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') &
   '  PCG(Jacobi):  Solving for ',trim(chvar),', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used
 
 end subroutine
@@ -336,7 +340,7 @@ end subroutine
 
 !***********************************************************************
 !
-subroutine iccg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+subroutine m_iccg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
 !
 !***********************************************************************
 !
@@ -398,12 +402,12 @@ subroutine iccg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, 
 
     ! Initially converged solution
     if( res0.lt.tol_abs ) then
-      write(*,'(3a,1PE10.3,a,1PE10.3,a)') '  PCG(IC0):  Solving for ',trim( chvar ), &
+      write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  PCG(IC0):  Solving for ',trim( chvar ), &
       ', Initial residual = ',res0,', Final residual = ',res0,', No Iterations 0'
       return
     endif  
 
-  if( verbose ) write(*,'(20x,a,1pe10.3)') 'res0 = ',res0
+  if( verbose ) write(6,'(20x,a,1pe10.3)') 'res0 = ',res0
 
 !
 ! Calculate elements of diagonal preconditioning matrix
@@ -493,7 +497,7 @@ subroutine iccg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, 
 
   rsm = resl/(res0+small)
 
-  if( verbose ) write(*,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvar),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
+  if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvar),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
 
   if( rsm.lt.tol_rel .or. resl.lt.tol_abs ) exit ! Criteria for exiting iterations.
 
@@ -503,13 +507,13 @@ subroutine iccg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, 
   end do
 
 ! Write linear solver report:
-  write(*,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  PCG(IC0):  Solving for ',trim( chvar ), &
+  write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  PCG(IC0):  Solving for ',trim( chvar ), &
   ', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used
 
 end subroutine
 
 
-subroutine bicgstab( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+subroutine m_bicgstab( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
 !
 !***********************************************************************
 !
@@ -566,12 +570,12 @@ subroutine bicgstab( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_a
   res0=sum(abs(res))
 
     if(res0.lt.tol_abs) then
-      write(*,'(3a,1PE10.3,a,1PE10.3,a)') '  BiCGStab(ILU(0)):  Solving for ',trim(chvar), &
+      write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  BiCGStab(ILU(0)):  Solving for ',trim(chvar), &
       ', Initial residual = ',res0,', Final residual = ',res0,', No Iterations 0'
       return
     endif
 
-  if( verbose ) write(*,'(20x,a,1pe10.3)') 'res0 = ',res0
+  if( verbose ) write(6,'(20x,a,1pe10.3)') 'res0 = ',res0
 
 !
 ! Calculate elements of diagonal preconditioning matrix
@@ -728,7 +732,7 @@ subroutine bicgstab( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_a
 
   rsm = resl/(res0+small)
 
-  if( verbose ) write(*,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim(chvar),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
+  if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim(chvar),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
 
   if( rsm.lt.tol_rel .or. resl.lt.tol_abs ) exit ! Criteria for exiting iterations.
 
@@ -738,13 +742,13 @@ subroutine bicgstab( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_a
   end do
 
 ! Write linear solver report:
-  write(*,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  BiCGStab(ILU(0)):  Solving for ',trim(chvar), &
+  write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  BiCGStab(ILU(0)):  Solving for ',trim(chvar), &
   ', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used
 
 end subroutine
 
 
-subroutine pmgmres_ilu ( n, nz_num, ia, ja, a, ua, x, rhs, res0, itr_max, mr, &
+subroutine m_pmgmres_ilu ( n, nz_num, ia, ja, a, ua, x, rhs, res0, itr_max, mr, &
   tol_abs, tol_rel, chvar, verbose )
 
 !*****************************************************************************80
@@ -923,7 +927,7 @@ subroutine pmgmres_ilu ( n, nz_num, ia, ja, a, ua, x, rhs, res0, itr_max, mr, &
       rho_tol = rho * tol_rel
     end if
 
-    v(1:n,1) = r(1:n) / rho
+    v(1:n,1) = r(1:n) / (rho+small)
 
     g(1) = rho
     g(2:mr+1) = 0.0D+00
@@ -970,8 +974,8 @@ subroutine pmgmres_ilu ( n, nz_num, ia, ja, a, ua, x, rhs, res0, itr_max, mr, &
 
       mu = sqrt ( h(k,k)**2 + h(k+1,k)**2 )
 
-      c(k) = h(k,k) / mu
-      s(k) = -h(k+1,k) / mu
+      c(k) = h(k,k) / (mu+small)
+      s(k) = -h(k+1,k) / (mu+small)
       h(k,k) = c(k) * h(k,k) - s(k) * h(k+1,k)
       h(k+1,k) = 0.0D+00
       call mult_givens ( c(k), s(k), k, g )
@@ -992,10 +996,10 @@ subroutine pmgmres_ilu ( n, nz_num, ia, ja, a, ua, x, rhs, res0, itr_max, mr, &
 
     k = k_copy - 1
 
-    y(k+1) = g(k+1) / h(k+1,k+1)
+    y(k+1) = g(k+1) / (h(k+1,k+1)+small)
 
     do i = k, 1, -1
-      y(i) = ( g(i) - dot_product ( h(i,i+1:k+1), y(i+1:k+1) ) ) / h(i,i)
+      y(i) = ( g(i) - dot_product ( h(i,i+1:k+1), y(i+1:k+1) ) ) / (h(i,i)+small)
     end do
 
     do i = 1, n
@@ -1010,13 +1014,14 @@ subroutine pmgmres_ilu ( n, nz_num, ia, ja, a, ua, x, rhs, res0, itr_max, mr, &
 
   if ( verbose ) then
     write ( *, '(a)' ) ' '
+    
     write ( *, '(a)' ) 'PMGMRES_ILU_CR:'
     write ( *, '(a,i6)' ) '  Iterations = ', itr_used
     write ( *, '(a,g14.6)' ) '  Final residual = ', rho
   end if
 
   ! Write linear solver report:
-  write(*,'(a,i2,3a,1PE10.3,a,1PE10.3,a,I0)') '  PMGMRES_ILU(',mr,'):  Solving for ',trim(chvar), &
+  write(6,'(a,i2,3a,1PE10.3,a,1PE10.3,a,I0)') '  PMGMRES_ILU(',mr,'):  Solving for ',trim(chvar), &
   ', Initial residual = ',res0,', Final residual = ',rho,', No Iterations ',itr_used
 
 

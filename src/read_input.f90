@@ -21,7 +21,7 @@ subroutine read_input_file
   character(len=2) :: trpn
   character(len=25) :: convective_scheme
   character(len=:), allocatable :: varnames
-  character(len=8) :: len8str
+  character(len=10) :: len10str
   type(CFG_t) :: my_cfg
   logical::LCONTROL(3) = .false.
   real(dp)::GRAVITY(3) = 0.0_DP
@@ -77,8 +77,9 @@ subroutine read_input_file
   CALL CFG_ADD(MY_CFG,"GNUPLOTPOINTS",1250,"MAX SAMPLE POINTS FOR GNUPLOT WHEN PLOTTING RESIDUAL")
   CALL CFG_ADD(MY_CFG,"MONITORFILE","MONITOR","MONITOR FILE NAME")
   CALL CFG_ADD(MY_CFG,"RESTARTFILE","RESTART","RESTART FILE NAME")
+  CALL CFG_ADD(MY_CFG,"LINEARSOLVER","bicgstab_ilu","TYPE OF LINEAR SOLVER NAME(pmgmres_ilu/bicgstab_ilu/guass-seidel)")
+  CALL CFG_ADD(MY_CFG,"SYMMETRYLINEARSOLVER","iccg","TYPE OF LINEAR SOLVER NAME(pmgmres_ilu/bicgstab_ilu/iccg/guass-seidel/dcg)")
   
-  call CFG_read_file(my_cfg,"cola_settings.ini")
   call CFG_update_from_arguments(my_cfg)
   
   call CFG_get(my_cfg,"TITLE",TITLE)
@@ -200,8 +201,13 @@ subroutine read_input_file
   call CFG_get(my_cfg,"CONUMFIXVALUE",CoNumFixValue)   
   call CFG_get(my_cfg,"ENABLEMENU",EnableMenu)
   call CFG_get(my_cfg,"GNUPLOTPOINTS",GNUPLOTPOINTS)
+  call CFG_get(my_cfg,"LINEARSOLVER",inputstr)
+  linear_solver = judge_linear_solver(inputstr,.false.)
+  call CFG_get(my_cfg,"SYMMETRYLINEARSOLVER",inputstr)
+  symmetry_linear_solver = judge_linear_solver(inputstr,.true.)
   call CFG_get(my_cfg,"MONITORFILE",monitor_file)
   call CFG_get(my_cfg,"RESTARTFILE",restart_file)
+
 !.END: READ INPUT FILE.............................................!
 
 
@@ -272,6 +278,8 @@ subroutine read_input_file
       varnames = 'None'
   endif
   WRITE(*,'(2x,a,a1,a)')formatSTR('Temporal Scheme',.false.,lc),'|',formatSTR(varnames,.true.,rc2)  
+  WRITE(*,'(2x,a,a1,a)')formatSTR('Linear Solver',.false.,lc),'|',formatSTR(linear_solver,.true.,rc2)
+  WRITE(*,'(2x,a,a1,a)')formatSTR('Symmetry Linear Solver',.false.,lc),'|',formatSTR(symmetry_linear_solver,.true.,rc2)
   if(LTRANSIENT)then
       WRITE(*,'(2x,a,a1,es20.7)')formatSTR('Timestep Size',.false.,lc),'|',TIMESTEP
   endif
@@ -322,40 +330,40 @@ subroutine read_input_file
   varnames = ''
   do i =1,NPHI
       if(LCAL(I))then
-          write(len8str,'(a1,a7)')'|',trim(adjustl(chvar(i)))
-          varnames = varnames//len8str
+          write(len10str,'(a1,a9)')'|',trim(adjustl(chvar(i)))
+          varnames = varnames//len10str
       end if
   end do
   WRITE(*,'(2x,a,a)')'Var.Name    ',varnames
   varnames = ''
   do i =1,NPHI
       if(LCAL(I))then
-          write(len8str,'(a1,f7.2)')'|',GDS(i)
-          varnames = varnames//len8str
+          write(len10str,'(a1,es9.2)')'|',GDS(i)
+          varnames = varnames//len10str
       end if
   end do
   WRITE(*,'(2x,a,a)')'DC.Factor   ',varnames
   varnames = ''
   do i =1,NPHI
       if(LCAL(I))then
-          write(len8str,'(a1,f7.2)')'|',URF(i)
-          varnames = varnames//len8str
+          write(len10str,'(a1,es9.2)')'|',URF(i)
+          varnames = varnames//len10str
       end if
   end do
   WRITE(*,'(2x,a,a)')'Relax.Factor',varnames
   varnames = ''
   do i =1,NPHI
       if(LCAL(I))then
-          write(len8str,'(a1,f7.2)')'|',SOR(i)*100
-          varnames = varnames//len8str
+          write(len10str,'(a1,es9.2)')'|',SOR(i)
+          varnames = varnames//len10str
       end if
   end do
-  WRITE(*,'(2x,a,a)')'Max.Res.%   ',varnames
+  WRITE(*,'(2x,a,a)')'Tar.Res.    ',varnames
   varnames = ''
   do i =1,NPHI
       if(LCAL(I))then
-          write(len8str,'(a1,f7.2)')'|',NSW(i)
-          varnames = varnames//len8str
+          write(len10str,'(a1,i9)')'|',NSW(i)
+          varnames = varnames//len10str
       end if
   end do
   WRITE(*,'(2x,a,a)')'Max.Iters.  ',varnames

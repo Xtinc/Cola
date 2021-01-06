@@ -14,6 +14,8 @@ subroutine calcuvw
   use faceflux_velocity
   use fieldManipulation, only: calcPressDiv
   use mhd
+  use linear_solvers
+  use title_mod
 
   implicit none
 !
@@ -550,7 +552,8 @@ subroutine calcuvw
   enddo
 
   ! Solve fvm equations
-  call bicgstab(u,iu)
+  call spsolve(linear_solver,u,su,resor(iu),nsw(iu),1.0E-13_dp,sor(iu),chvarSolver(iu),ltest)
+  !call bicgstab(u,iu)
 
 !
 !.....Assemble and solve system for V component of velocity
@@ -608,7 +611,8 @@ subroutine calcuvw
   enddo
 
   ! Solve fvm equations
-  call bicgstab(v,iv)
+  !call bicgstab(v,iv)
+  call spsolve(linear_solver,v,su,resor(iv),nsw(iv),1.0E-13_dp,sor(iv),chvarSolver(iv),ltest)
  
 !
 !.....Assemble and solve system for W component of velocity
@@ -667,6 +671,7 @@ subroutine calcuvw
   enddo
 
   ! Solve fvm equations
-  call bicgstab(w,iw)
+  !call bicgstab(w,iw)
+   call spsolve(linear_solver,w,su,resor(iw),nsw(iw),1.0E-13_dp,sor(iw),chvarSolver(iw),ltest)
 
 end subroutine

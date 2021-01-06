@@ -122,6 +122,7 @@ subroutine calculate_electric_potential
   use gradients
   use title_mod
   use fieldManipulation, only: explDiv
+  use linear_solvers
 
   implicit none
 
@@ -150,7 +151,8 @@ subroutine calculate_electric_potential
 
   ! Solve system
   pp = 0.0_dp
-  call iccg(pp,iep) 
+  !call iccg(pp,iep) 
+  call spsolve(symmetry_linear_solver,pp,su,resor(ip),nsw(ip),1.0E-13_dp,sor(ip),chvarSolver(ip),ltest)
  
   ! First way:
   ppref = pp(pRefCell)

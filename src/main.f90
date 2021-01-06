@@ -133,9 +133,10 @@ program cola
       !---------------------------------------------------------------
 
       ! Check residual and stop program if residuals diverge
-      source = max(resor(iu),resor(iv),resor(iw)) 
+      source = max(resor(iu),resor(iv),resor(iw),resor(ip)) 
+      
 
-      if( itimes.gt.checkcycle.and.source.gt.slarge ) then
+      if( itime.gt.checkcycle.and.source.gt.slarge ) then
           write(6,"(//,10x,a)") "*** Program terminated -  iterations diverge ***" 
           diverge=.true. 
           fulloop=.false.
@@ -204,7 +205,7 @@ program cola
   WRITE(*,'(2x,a)') '------------------------------------------------------------------------------'
 
   call timestamp
-  
+
 end program
     
         

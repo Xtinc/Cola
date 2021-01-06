@@ -51,7 +51,6 @@
 		<File RelativePath=".\src\adjustMassFlow.f90"/>
 		<File RelativePath=".\src\asm_heatflux_terms.f90"/>
 		<File RelativePath=".\src\bcin.f90"/>
-		<File RelativePath=".\src\bicgstab.f90"/>
 		<File RelativePath=".\src\bpres.f90"/>
 		<File RelativePath=".\src\calc_statistics.f90"/>
 		<File RelativePath=".\src\calc_strain_and_vorticity.f90"/>
@@ -64,11 +63,8 @@
 		<File RelativePath=".\src\continuityErrors.f90"/>
 		<File RelativePath=".\src\CourantNo.f90"/>
 		<File RelativePath=".\src\create_fields.f90"/>
-		<File RelativePath=".\src\dpcg.f90"/>
 		<File RelativePath=".\src\exec_menu.f90"/>
 		<File RelativePath=".\src\faceflux_mass.f90"/>
-		<File RelativePath=".\src\gauss-seidel.f90"/>
-		<File RelativePath=".\src\iccg.f90"/>
 		<File RelativePath=".\src\init.f90"/>
 		<File RelativePath=".\src\k_epsilon_rlzb.f90"/>
 		<File RelativePath=".\src\k_epsilon_rlzb_2lewt.f90"/>

@@ -19,11 +19,17 @@ subroutine create_fields
 !***********************************************************************
 !
   integer :: ierr 
-  integer :: localreal
+  integer :: localreal,evenum
   real(dp):: totalnumsize
   
   !plot array hardcoded
-  call plt%setsize(gnuplotpoints,4)
+  if(mod(gnuplotpoints,2).ne.0)then
+      evenum=gnuplotpoints+1
+  else
+      evenum=gnuplotpoints
+  endif
+  
+  call plt%setsize(evenum,4)
   call plt%mealloc()
 
   ! Velocities 

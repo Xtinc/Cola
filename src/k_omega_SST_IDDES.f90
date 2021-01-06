@@ -169,6 +169,7 @@ subroutine calcsc(Fi,dFidxi,ifi)
   use sparse_matrix
   use gradients
   use title_mod
+  use linear_solvers
 
   implicit none
 
@@ -777,8 +778,8 @@ subroutine calcsc(Fi,dFidxi,ifi)
   enddo
 
   ! Solve linear system:
-  call bicgstab(fi,ifi)
-
+  !call bicgstab(fi,ifi)
+  call spsolve(linear_solver,fi,su,resor(ifi),nsw(ifi),1.0E-13_dp,sor(ifi),chvarSolver(ifi),ltest)
   !
   ! Update symmetry and outlet boundaries
   !
