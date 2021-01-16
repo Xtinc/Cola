@@ -9,3 +9,6 @@
 ## von Karman vortex street
 
 ![images](https://github.com/Xtinc/public_img/blob/main/v0000.gif)
+
+##Jan 16 2020
+Due to unexpected updating of visual studio, the intergation of intel parallel XE and visual studio has been removed. Since my license will also be expired in May, the complier toolkits of Cola project will be transformed into GNU. 
