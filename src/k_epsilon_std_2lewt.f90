@@ -108,7 +108,7 @@ subroutine calcsc(Fi,dFidxi,ifi)
 !***********************************************************************
 !
   integer, intent(in) :: ifi
-  real(dp), dimension(numTotal) :: fi
+  real(dp), dimension(:), allocatable :: fi
   real(dp), dimension(3,numCells) :: dfidxi
 
 !

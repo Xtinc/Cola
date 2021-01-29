@@ -44,41 +44,41 @@ contains
 !
 ! > Create new CSR matrix object for givenL nnz, numCells, ioffset and ja data arrays.
 !
-function new_csrMatrix( ) result(csr)
-  implicit none
-  integer :: i
-  type(csrMatrix) :: csr
-  
-
-  ! Option 1.
-
-  allocate(csr%ioffset ( numCells+1 ))
-  allocate(csr%ja ( nnz ))
-  allocate(csr%diag ( numCells ))
-  allocate(csr%a ( nnz ))
-
-  do i=1,numCells+1
-    csr % ioffset(i) = ioffset(i)
-  enddo
-
-  do i=1,numCells
-    csr % diag(i) = diag(i)
-  enddo
-  
-  do i=1,nnz
-    csr % ja(i) = ja(i)
-  enddo
-
-  !
-  ! Option 2. Instead of all this above - allocate on asignement
-  !
-  ! csr % ioffset = ioffset
-  ! csr % diag = diag
-  ! csr % ja = ja
-  ! csr % a  = a
-  
-
-end function new_csrMatrix
+!function new_csrMatrix( ) result(csr)
+!  implicit none
+!  integer :: i
+!  type(csrMatrix) :: csr
+!  
+!
+!  ! Option 1.
+!
+!  allocate(csr%ioffset ( numCells+1 ))
+!  allocate(csr%ja ( nnz ))
+!  allocate(csr%diag ( numCells ))
+!  allocate(csr%a ( nnz ))
+!
+!  do i=1,numCells+1
+!    csr % ioffset(i) = ioffset(i)
+!  enddo
+!
+!  do i=1,numCells
+!    csr % diag(i) = diag(i)
+!  enddo
+!  
+!  do i=1,nnz
+!    csr % ja(i) = ja(i)
+!  enddo
+!
+!  !
+!  ! Option 2. Instead of all this above - allocate on asignement
+!  !
+!  ! csr % ioffset = ioffset
+!  ! csr % diag = diag
+!  ! csr % ja = ja
+!  ! csr % a  = a
+!  
+!
+!end function new_csrMatrix
 
 !
 ! > Create new CSR matrix object for given mesh data.

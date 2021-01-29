@@ -48,8 +48,8 @@ subroutine spsolve(solver, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar,verbo
 ! Parameters
 !
   character( len = *) :: solver                       ! Char string for linear solver name.
-  real(dp), dimension(numTotal), intent(inout) :: fi  ! On input-current field; on output-the solution vector
-  real(dp), dimension(numCells), intent(in) :: rhs    ! The right hand side of the linear system
+  real(dp), dimension(:),allocatable, target, intent(inout) :: fi  ! On input-current field; on output-the solution vector
+  real(dp), dimension(:),allocatable, target, intent(in) :: rhs    ! The right hand side of the linear system
   real(dp), intent(out) :: res0                       ! Output - initial residual of the linear system in L1 norm 
   integer, intent(in) :: itr_max                      ! Maximum number of iterations
   real(dp), intent(in) :: tol_abs                     ! Absolute tolerance level for residual
@@ -57,31 +57,41 @@ subroutine spsolve(solver, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar,verbo
   character( len=* ), intent(in) :: chvar             ! Character string containing name of the solved field, printed on stdout
   logical :: verbose                                  ! Print linear solver process
   real(dp)::factor
+  
+  real(dp),dimension(:),pointer :: tmpfi,tmprhs
+  real(dp), dimension(:),allocatable :: tmpfi2
+  
+  tmpfi  => fi(1:numCells)
+  tmprhs => rhs
 
 
   if( solver .eq. 'gauss-seidel') then
 
-    call m_GaussSeidel( numCells, nnz, ioffset, ja, a, diag, fi(1:numCells), rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+    call m_GaussSeidel( numCells, nnz, tmpfi, tmprhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
 
   elseif( solver .eq. 'dcg' ) then
 
-    call m_dpcg( numCells, nnz, ioffset, ja, a, diag, fi(1:numCells), rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+    call m_dpcg( numCells, nnz, tmpfi, tmprhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
 
   elseif( solver .eq. 'iccg' ) then 
 
-    call m_iccg( numCells, nnz, ioffset, ja, a, diag, fi(1:numCells), rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+    call m_iccg( numCells, nnz, tmpfi, tmprhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
 
   elseif( solver .eq. 'bicgstab_ilu' ) then  
 
-    call m_bicgstab( numCells, nnz, ioffset, ja, a, diag, fi(1:numCells), rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose ) 
+    call m_bicgstab( numCells, nnz, tmpfi, tmprhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose ) 
 
   elseif( solver .eq. 'pmgmres_ilu' ) then 
 
     ! ** NOTE for GMRES(m) **
     ! Here we have hardcoded the restart parameter - m in restarted GMRES algorithm - GMRES(m), to m=4. 
     ! Play with this number if you want, the greaer like m=20, better the convergence, but much more memory is required.
+    allocate(tmpfi2(numCells))
+    tmpfi2=fi(1:numCells)
 
-    call m_pmgmres_ilu( numCells, nnz, ioffset, ja, a, diag, fi(1:numCells), rhs, res0, itr_max, 4, tol_abs, tol_rel, chvar, verbose )
+    call m_pmgmres_ilu( numCells, nnz, ioffset, ja, a, diag, tmpfi2 , rhs, res0, itr_max, 4, tol_abs, tol_rel, chvar, verbose )
+    
+    deallocate(tmpfi2)
     
   endif
 
@@ -93,7 +103,7 @@ end subroutine
 
 !***********************************************************************
 !
-subroutine m_GaussSeidel( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+subroutine m_GaussSeidel( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
 !
 !***********************************************************************
 !
@@ -110,12 +120,12 @@ subroutine m_GaussSeidel( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, 
 !
   integer, intent(in) :: n                              ! Number of unknowns, length of a solution vector
   integer, intent(in) :: nnz                            ! Number of non-zero elements in sparse matrix
-  integer, dimension(n+1), intent(in) :: ioffset        ! The offsets of each row in coef array
-  integer, dimension(nnz), intent(in) :: ja             ! Columns array
-  real(dp), dimension(nnz), intent(in) :: a             ! Coefficient array
-  integer, dimension(n), intent(in) :: diag             ! Position of diagonal elements in coeff. array
-  real(dp), dimension(n), intent(inout) :: fi           ! On input-current field; on output-the solution vector
-  real(dp), dimension(n), intent(in) :: rhs             ! The right hand side of the linear system
+!  integer, dimension(n+1), intent(in) :: ioffset        ! The offsets of each row in coef array
+!  integer, dimension(nnz), intent(in) :: ja             ! Columns array
+!  real(dp), dimension(nnz), intent(in) :: a             ! Coefficient array
+!  integer, dimension(n), intent(in) :: diag             ! Position of diagonal elements in coeff. array
+  real(dp), dimension(:), pointer, intent(inout) :: fi           ! On input-current field; on output-the solution vector
+  real(dp), dimension(:), pointer, intent(in) :: rhs             ! The right hand side of the linear system
   real(dp), intent(out) :: res0                         ! Output - initial residual of the linear system in L1 norm
   integer, intent(in) :: itr_max                        ! Maximum number of iterations
   real(dp), intent(in) :: tol_abs                       ! Absolute tolerance level for residual
@@ -128,7 +138,9 @@ subroutine m_GaussSeidel( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, 
 !
   integer :: i, k, l, itr_used
   real(dp) :: rsm, resl
-  real(dp), dimension(n) :: res                         ! Residual vector
+  real(dp), allocatable, dimension(:) :: res                         ! Residual vector
+  
+  allocate(res(n))
 
 !
 ! Start iterations
@@ -157,6 +169,7 @@ subroutine m_GaussSeidel( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, 
     if( res0.lt.tol_abs ) then
       write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  Gauss-Seidel:  Solving for ',trim( chvar ), &
       ', Initial residual = ',res0,', Final residual = ',res0,', No Iterations 1'
+      deallocate(res)
       return
     endif  
 
@@ -185,13 +198,15 @@ subroutine m_GaussSeidel( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, 
 ! Write linear solver report:
   write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  Gauss-Seidel:  Solving for ',trim( chvar ), &
   ', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used 
+  
+  deallocate(res)
 
 end subroutine
 
 
 !***********************************************************************
 !
-subroutine m_dpcg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+subroutine m_dpcg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
 !
 !***********************************************************************
 !
@@ -208,12 +223,12 @@ subroutine m_dpcg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs
 !
   integer, intent(in) :: n                              ! Number of unknowns, length of a solution vector
   integer, intent(in) :: nnz                            ! Number of non-zero elements in sparse matrix
-  integer, dimension(n+1), intent(in) :: ioffset        ! The offsets of each row in coef array
-  integer, dimension(nnz), intent(in) :: ja             ! Columns array
-  real(dp), dimension(nnz), intent(in) :: a             ! Coefficient array
-  integer, dimension(n), intent(in) :: diag             ! Position of diagonal elements in coeff. array
-  real(dp), dimension(n), intent(inout) :: fi           ! On input-current field; on output-the solution vector
-  real(dp), dimension(n), intent(in) :: rhs             ! The right hand side of the linear system
+!  integer, dimension(n+1), intent(in) :: ioffset        ! The offsets of each row in coef array
+!  integer, dimension(nnz), intent(in) :: ja             ! Columns array
+!  real(dp), dimension(nnz), intent(in) :: a             ! Coefficient array
+!  integer, dimension(n), intent(in) :: diag             ! Position of diagonal elements in coeff. array
+  real(dp), dimension(:), pointer, intent(inout) :: fi           ! On input-current field; on output-the solution vector
+  real(dp), dimension(:), pointer, intent(in) :: rhs             ! The right hand side of the linear system
   real(dp), intent(out) :: res0                         ! Output - initial residual of the linear system in L1 norm
   integer, intent(in) :: itr_max                        ! Maximum number of iterations
   real(dp), intent(in) :: tol_abs                       ! Absolute tolerance level for residual
@@ -224,10 +239,14 @@ subroutine m_dpcg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs
 ! Local variables
 !
   integer :: i, k, l, itr_used
-  real(dp), dimension(n) :: pk,zk
+  real(dp), allocatable, dimension(:) :: pk,zk
   real(dp) :: rsm, resl
   real(dp) :: s0, sk, alf, bet, pkapk
-  real(dp), dimension(n) :: res                         ! Residual vector
+  real(dp), allocatable, dimension(:) :: res                         ! Residual vector
+  
+  allocate(pk(n))
+  allocate(zk(n))
+  allocate(res(n))
 
 !
 ! Initalize working arrays
@@ -249,98 +268,103 @@ subroutine m_dpcg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs
   ! L1-norm of the residual
   res0=sum( abs(res) )
   
-    if(res0.lt.tol_abs) then
+  if(res0.lt.tol_abs) then
       write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  PCG(Jacobi):  Solving for ',trim( chvar ), &
       ', Initial residual = ',res0,', Final residual = ',res0,', No Iterations 0'
-      return
-    endif
-!
-! If verbose==true, print the norm 
-!
-  if( verbose ) write(6,'(20x,a,1pe10.3)') 'res0 = ',res0
+      
+  else
+    !
+    ! If verbose==true, print the norm 
+    !
+      if( verbose ) write(6,'(20x,a,1pe10.3)') 'res0 = ',res0
+    
+      s0=1.e20
+    
+      itr_used = 0
+    
+    !
+    ! Start iterations
+    !
+    
+      do l=1,itr_max
+    !
+    ! Solve for zk(ijk) -- diagonal preconditioner
+    !
+      do i=1,n
+        zk(i) = res(i) / a( diag(i) )
+      enddo
+      
+      ! Inner product
+      sk = sum( res*zk ) !..or  dot_product(res,zk)
+    
+    !
+    ! Calculate beta
+    !
+      bet=sk/s0
+    
+    !
+    ! Calculate new search vector pk
+    !
+      pk = zk + bet*pk
+    
+    !
+    ! Calculate scalar product (pk.a pk) and alpha (overwrite zk)
+    !
+      do i=1,n
+        zk(i) = 0.0_dp 
+        do k = ioffset(i),ioffset(i+1)-1
+          zk(i) = zk(i) + a(k) * pk( ja(k) ) 
+        enddo
+      enddo
+    
+      ! Inner product
+      pkapk=sum( pk*zk )
+    
+      alf=sk/pkapk
+    
+      ! Update solution vector
+      fi(1:n) = fi(1:n) + alf*pk
+    
+      ! Update residual vector
+      res = res - alf*zk
+    
+      ! L1-norm of residual - current value
+      resl = sum( abs( res ) )
+    
+      s0=sk
+    
+      itr_used = itr_used + 1
+      
+    !
+    ! Check convergence
+    !
+    
+      rsm = resl/(res0+small) ! Relative residual - current value
+    
+      if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvar) ,' sweep = ',l,' resl = ',resl,' rsm = ',rsm
+    
+      if( rsm.lt.tol_rel .or. resl.lt.tol_abs ) exit ! Criteria for exiting iterations.
+    
+    !
+    ! End of iteration loop
+    !
+      end do
+    
+    ! Write linear solver report:
+      write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') &
+      '  PCG(Jacobi):  Solving for ',trim(chvar),', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used        
+  endif
 
-  s0=1.e20
-
-  itr_used = 0
-
-!
-! Start iterations
-!
-
-  do l=1,itr_max
-!
-! Solve for zk(ijk) -- diagonal preconditioner
-!
-  do i=1,n
-    zk(i) = res(i) / a( diag(i) )
-  enddo
-  
-  ! Inner product
-  sk = sum( res*zk ) !..or  dot_product(res,zk)
-
-!
-! Calculate beta
-!
-  bet=sk/s0
-
-!
-! Calculate new search vector pk
-!
-  pk = zk + bet*pk
-
-!
-! Calculate scalar product (pk.a pk) and alpha (overwrite zk)
-!
-  do i=1,n
-    zk(i) = 0.0_dp 
-    do k = ioffset(i),ioffset(i+1)-1
-      zk(i) = zk(i) + a(k) * pk( ja(k) ) 
-    enddo
-  enddo
-
-  ! Inner product
-  pkapk=sum( pk*zk )
-
-  alf=sk/pkapk
-
-  ! Update solution vector
-  fi(1:n) = fi(1:n) + alf*pk
-
-  ! Update residual vector
-  res = res - alf*zk
-
-  ! L1-norm of residual - current value
-  resl = sum( abs( res ) )
-
-  s0=sk
-
-  itr_used = itr_used + 1
-  
-!
-! Check convergence
-!
-
-  rsm = resl/(res0+small) ! Relative residual - current value
-
-  if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvar) ,' sweep = ',l,' resl = ',resl,' rsm = ',rsm
-
-  if( rsm.lt.tol_rel .or. resl.lt.tol_abs ) exit ! Criteria for exiting iterations.
-
-!
-! End of iteration loop
-!
-  end do
-
-! Write linear solver report:
-  write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') &
-  '  PCG(Jacobi):  Solving for ',trim(chvar),', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used
+  deallocate(pk)
+  deallocate(zk)
+  deallocate(res)
 
 end subroutine
 
 
 !***********************************************************************
 !
-subroutine m_iccg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+subroutine m_iccg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
 !
 !***********************************************************************
 !
@@ -357,12 +381,12 @@ subroutine m_iccg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs
 !
   integer, intent(in) :: n                              ! Number of unknowns, length of a solution vector
   integer, intent(in) :: nnz                            ! Number of non-zero elements in sparse matrix
-  integer, dimension(n+1), intent(in) :: ioffset        ! The offsets of each row in coef array
-  integer, dimension(nnz), intent(in) :: ja             ! Columns array
-  real(dp), dimension(nnz), intent(in) :: a             ! Coefficient array
-  integer, dimension(n), intent(in) :: diag             ! Position of diagonal elements in coeff. array
-  real(dp), dimension(n), intent(inout) :: fi           ! On input-current field; on output-the solution vector
-  real(dp), dimension(n), intent(in) :: rhs             ! The right hand side of the linear system
+!  integer, dimension(n+1), intent(in) :: ioffset        ! The offsets of each row in coef array
+!  integer, dimension(nnz), intent(in) :: ja             ! Columns array
+!  real(dp), dimension(nnz), intent(in) :: a             ! Coefficient array
+!  integer, dimension(n), intent(in) :: diag             ! Position of diagonal elements in coeff. array
+  real(dp), dimension(:), pointer, intent(inout) :: fi           ! On input-current field; on output-the solution vector
+  real(dp), dimension(:), pointer, intent(in) :: rhs             ! The right hand side of the linear system
   real(dp), intent(out) :: res0                         ! Output - initial residual of the linear system in L1 norm
   integer, intent(in) :: itr_max                        ! Maximum number of iterations
   real(dp), intent(in) :: tol_abs                       ! Absolute tolerance level for residual
@@ -376,9 +400,13 @@ subroutine m_iccg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs
   integer :: i, k, l, itr_used
   real(dp) :: rsm, resl
   real(dp) :: s0, sk, alf, bet, pkapk
-  real(dp), dimension(n) :: pk,zk,d
-  real(dp), dimension(n) :: res                         ! Residual vector
+  real(dp), allocatable, dimension(:) :: pk,zk,d
+  real(dp), allocatable, dimension(:) :: res                         ! Residual vector
 
+  allocate(pk(n))
+  allocate(zk(n))
+  allocate(d(n))
+  allocate(res(n))
 !
 ! Initalize working arrays
 !
@@ -401,119 +429,126 @@ subroutine m_iccg( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs
   res0=sum( abs(res) )
 
     ! Initially converged solution
-    if( res0.lt.tol_abs ) then
-      write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  PCG(IC0):  Solving for ',trim( chvar ), &
-      ', Initial residual = ',res0,', Final residual = ',res0,', No Iterations 0'
-      return
-    endif  
+  if( res0.lt.tol_abs ) then
+    write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  PCG(IC0):  Solving for ',trim( chvar ), &
+    ', Initial residual = ',res0,', Final residual = ',res0,', No Iterations 0'
+  else
+      
+    if( verbose ) write(6,'(20x,a,1pe10.3)') 'res0 = ',res0
+    
+    !
+    ! Calculate elements of diagonal preconditioning matrix
+    !
+      do i=1,n
+        d(i) = a( diag(i) )
+        do k = ioffset(i), diag(i)-1
+          d(i) = d(i) - a( k )**2 * d( ja( k )) 
+        end do
+        d(i) =  1.0_dp / d(i)
+      enddo
+    
+      s0=1.e20
+    
+      itr_used = 0
+      
+    !
+    ! Start iterations
+    !
+      do l=1,itr_max
+    !
+    ! Solve for zk(ijk) -- forward substitution
+    !
+      do i=1,n
+        zk(i) = res(i)
+        do k = ioffset(i), diag(i)-1
+          zk(i) = zk(i) -  a( k ) * zk( ja( k ))
+        end do
+        zk(i) = zk(i)*d(i)
+      enddo
+    
+      zk = zk/(d+small)     
+    !
+    ! Backward substitution
+    !
+      do i=n,1,-1
+        do k = diag(i)+1, ioffset(i+1)-1
+          zk(i) = zk(i) - a( k ) * zk( ja( k ))
+        end do
+        zk(i) = zk(i)*d(i)
+      enddo
+      
+      ! Inner product
+      sk = sum(res*zk) !..or  dot_product(res,zk)
+    
+    !
+    ! Calculate beta
+    !
+      bet=sk/s0
+    
+    !
+    ! Calculate new search vector pk
+    !
+      pk = zk + bet*pk
+    
+    !
+    ! Calculate scalar product (pk.a pk) and alpha (overwrite zk)
+    !
+      do i=1,n
+        zk(i) = 0.0_dp 
+        do k = ioffset(i),ioffset(i+1)-1
+          zk(i) = zk(i) + a(k) * pk( ja(k) ) 
+        enddo
+      enddo
+    
+      ! Inner product
+      pkapk=sum(pk*zk)
+    
+      alf=sk/pkapk
+    
+      ! Update solution vector
+      fi(1:n) = fi(1:n) + alf*pk
+    
+      ! Update residual vector
+      res = res - alf*zk
+    
+      ! L1-norm of residual
+      resl = sum( abs(res) )
+    
+      s0=sk
+    
+      itr_used = itr_used + 1
+      
+    !
+    ! Check convergence
+    !
+    
+      rsm = resl/(res0+small)
+    
+      if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvar),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
+    
+      if( rsm.lt.tol_rel .or. resl.lt.tol_abs ) exit ! Criteria for exiting iterations.
+    
+    !
+    ! End of iteration loop
+    !
+      end do
+    
+    ! Write linear solver report:
+      write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  PCG(IC0):  Solving for ',trim( chvar ), &
+      ', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used
+            
+  endif  
 
-  if( verbose ) write(6,'(20x,a,1pe10.3)') 'res0 = ',res0
 
-!
-! Calculate elements of diagonal preconditioning matrix
-!
-  do i=1,n
-    d(i) = a( diag(i) )
-    do k = ioffset(i), diag(i)-1
-      d(i) = d(i) - a( k )**2 * d( ja( k )) 
-    end do
-    d(i) =  1.0_dp / d(i)
-  enddo
-
-  s0=1.e20
-
-  itr_used = 0
-  
-!
-! Start iterations
-!
-  do l=1,itr_max
-!
-! Solve for zk(ijk) -- forward substitution
-!
-  do i=1,n
-    zk(i) = res(i)
-    do k = ioffset(i), diag(i)-1
-      zk(i) = zk(i) -  a( k ) * zk( ja( k ))
-    end do
-    zk(i) = zk(i)*d(i)
-  enddo
-
-  zk = zk/(d+small)     
-!
-! Backward substitution
-!
-  do i=n,1,-1
-    do k = diag(i)+1, ioffset(i+1)-1
-      zk(i) = zk(i) - a( k ) * zk( ja( k ))
-    end do
-    zk(i) = zk(i)*d(i)
-  enddo
-  
-  ! Inner product
-  sk = sum(res*zk) !..or  dot_product(res,zk)
-
-!
-! Calculate beta
-!
-  bet=sk/s0
-
-!
-! Calculate new search vector pk
-!
-  pk = zk + bet*pk
-
-!
-! Calculate scalar product (pk.a pk) and alpha (overwrite zk)
-!
-  do i=1,n
-    zk(i) = 0.0_dp 
-    do k = ioffset(i),ioffset(i+1)-1
-      zk(i) = zk(i) + a(k) * pk( ja(k) ) 
-    enddo
-  enddo
-
-  ! Inner product
-  pkapk=sum(pk*zk)
-
-  alf=sk/pkapk
-
-  ! Update solution vector
-  fi(1:n) = fi(1:n) + alf*pk
-
-  ! Update residual vector
-  res = res - alf*zk
-
-  ! L1-norm of residual
-  resl = sum( abs(res) )
-
-  s0=sk
-
-  itr_used = itr_used + 1
-  
-!
-! Check convergence
-!
-
-  rsm = resl/(res0+small)
-
-  if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvar),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
-
-  if( rsm.lt.tol_rel .or. resl.lt.tol_abs ) exit ! Criteria for exiting iterations.
-
-!
-! End of iteration loop
-!
-  end do
-
-! Write linear solver report:
-  write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  PCG(IC0):  Solving for ',trim( chvar ), &
-  ', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used
+  deallocate(pk)
+  deallocate(zk)
+  deallocate(d)
+  deallocate(res)
 
 end subroutine
 
 
-subroutine m_bicgstab( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+subroutine m_bicgstab( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
 !
 !***********************************************************************
 !
@@ -530,12 +565,12 @@ subroutine m_bicgstab( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol
 !
   integer, intent(in) :: n                              ! Number of unknowns, length of a solution vector
   integer, intent(in) :: nnz                            ! Number of non-zero elements in sparse matrix
-  integer, dimension(n+1), intent(in) :: ioffset        ! The offsets of each row in coef array
-  integer, dimension(nnz), intent(in) :: ja             ! Columns array
-  real(dp), dimension(nnz), intent(in) :: a             ! Coefficient array
-  integer, dimension(n), intent(in) :: diag             ! Position of diagonal elements in coeff. array
-  real(dp), dimension(n), intent(inout) :: fi           ! On input-current field; on output-the solution vector
-  real(dp), dimension(n), intent(in) :: rhs             ! The right hand side of the linear system
+!  integer, dimension(:), intent(in) :: ioffset        ! The offsets of each row in coef array
+!  integer, dimension(nnz), intent(in) :: ja             ! Columns array
+!  real(dp), dimension(nnz), intent(in) :: a             ! Coefficient array
+!  integer, dimension(n), intent(in) :: diag             ! Position of diagonal elements in coeff. array
+  real(dp), dimension(:), pointer , intent(inout) :: fi           ! On input-current field; on output-the solution vector
+  real(dp), dimension(:), pointer , intent(in) :: rhs             ! The right hand side of the linear system
   real(dp), intent(out) :: res0                         ! Output - initial residual of the linear system in L1 norm
   integer, intent(in) :: itr_max                        ! Maximum number of iterations
   real(dp), intent(in) :: tol_abs                       ! Absolute tolerance level for residual
@@ -549,9 +584,17 @@ subroutine m_bicgstab( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol
   integer :: i, k, l, itr_used
   real(dp) :: rsm, resl
   real(dp) :: alf, beto, gam, bet, om, ukreso
-  real(dp), dimension(n) :: reso,pk,uk,zk,vk,d
-  real(dp), dimension(n) :: res                         ! Residual vector
+  real(dp), allocatable, dimension(:) :: reso,pk,uk,zk,vk,d
+  real(dp), allocatable, dimension(:) :: res                         ! Residual vector
 
+  allocate(reso(n))
+  allocate(pk(n))
+  allocate(uk(n))
+  allocate(zk(n))
+  allocate(vk(n))
+  allocate(d(n))
+  allocate(res(n))
+  
 !
 ! Calculate initial residual vector and the norm
 !
@@ -569,181 +612,190 @@ subroutine m_bicgstab( n, nnz, ioffset, ja, a, diag, fi, rhs, res0, itr_max, tol
   ! L1-norm of residual
   res0=sum(abs(res))
 
-    if(res0.lt.tol_abs) then
-      write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  BiCGStab(ILU(0)):  Solving for ',trim(chvar), &
-      ', Initial residual = ',res0,', Final residual = ',res0,', No Iterations 0'
-      return
-    endif
-
-  if( verbose ) write(6,'(20x,a,1pe10.3)') 'res0 = ',res0
-
-!
-! Calculate elements of diagonal preconditioning matrix
-!
-  do i=1,n
-    d(i) = a( diag(i) )
-    do k = ioffset(i), diag(i)-1
-      do l = diag( ja(k) ), ioffset( ja( k )+1 )-1
-        ! kolona u kojoj je trenutni dijagonalni element je i
-        ! kada je pronadje izlazi sa poslednjom vrednosti l indeksa:
-        if ( ja( l ) == i ) exit 
+  if(res0.lt.tol_abs) then
+    write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  BiCGStab(ILU(0)):  Solving for ',trim(chvar), &
+    ', Initial residual = ',res0,', Final residual = ',res0,', No Iterations 0'
+  else
+      
+    if( verbose ) write(6,'(20x,a,1pe10.3)') 'res0 = ',res0
+    
+    !
+    ! Calculate elements of diagonal preconditioning matrix
+    !
+      do i=1,n
+        d(i) = a( diag(i) )
+        do k = ioffset(i), diag(i)-1
+          do l = diag( ja(k) ), ioffset( ja( k )+1 )-1
+            ! kolona u kojoj je trenutni dijagonalni element je i
+            ! kada je pronadje izlazi sa poslednjom vrednosti l indeksa:
+            if ( ja( l ) == i ) exit 
+          end do
+          d(i) = d(i) - a( k ) * d( ja( k )) * a( l )
+        end do
+        d(i) = 1.0_dp / d(i)
+      enddo 
+    
+    !
+    ! Initialize working arrays and constants
+    !
+      reso  = res    
+      pk = 0.0_dp
+      uk = 0.0_dp
+      zk = 0.0_dp
+      vk = 0.0_dp
+    
+      alf = 1.0_dp
+      beto = 1.0_dp
+      gam = 1.0_dp
+    
+      itr_used = 0
+    
+    !
+    ! Start iterations
+    !
+    
+      do l=1,itr_max
+    
+    !
+    ! Calculate beta and omega
+    !
+      bet = sum(res*reso)
+      om = bet*gam/(alf*beto+small)
+      beto = bet
+    
+    !
+    ! Calculate pk
+    !
+      pk = res + om*(pk -alf*uk)
+    
+    
+    !
+    ! Solve (M ZK = PK) - forward substitution
+    !
+      do i=1,n
+        zk(i) = pk(i)
+        do k = ioffset(i), diag(i)-1
+          zk(i) = zk(i) -  a( k ) * zk( ja( k ))
+        end do
+        zk(i) = zk(i)*d(i)
+      enddo
+    
+      zk = zk/(d+small)
+    
+    
+    !
+    ! Backward substitution
+    !
+      do i=n,1,-1
+        do k = diag(i)+1, ioffset(i+1)-1
+          zk(i) = zk(i) - a( k ) * zk( ja( k ))
+        end do
+        zk(i) = zk(i)*d(i)
+      enddo
+    
+    
+    !
+    ! Matvec 1: Uk = A*pk
+    !
+      do i=1,n
+        uk(i) = 0.0_dp
+        do k = ioffset(i),ioffset(i+1)-1
+          uk(i) = uk(i) +  a(k) * zk( ja(k) ) 
+        enddo
+      enddo
+    
+    
+    !
+    ! Calculate scalar product uk*reso, and gamma
+    !
+      ukreso = sum(uk*reso)
+      gam = bet/ukreso
+    
+    
+    !
+    ! Update 'fi' and calculate 'w' (overwrite 'res; - it is res-update)
+    !
+      fi(1:n) = fi(1:n) + gam*zk
+      res     = res     - gam*uk   ! <- W
+    
+    
+    !
+    ! Solve (M Y = W); Y overwrites zk; forward substitution
+    !
+      do i=1,n
+        zk(i) = res(i)
+        do k = ioffset(i), diag(i)-1
+          zk(i) = zk(i) -  a( k ) * zk( ja( k ) )
+        end do
+        zk(i) = zk(i)*d(i)
+      enddo
+    
+      zk = zk/(d+small)
+    
+    !
+    ! Backward substitution
+    !
+      do i=n,1,-1
+        do k = diag(i)+1, ioffset(i+1)-1
+          zk(i) = zk(i) - a( k ) * zk( ja( k ) )
+        end do
+        zk(i) = zk(i)*d(i)
+      enddo
+    
+    !
+    ! Matvec 2: v = A*y (vk = A*zk); vk = csrMatVec(a,zk)
+    !
+      do i=1,n
+        vk(i) = 0.0_dp
+        do k = ioffset(i),ioffset(i+1)-1
+          vk(i) = vk(i) +  a(k) * zk( ja(k) ) 
+        enddo
+      enddo  
+    
+    !
+    ! Calculate alpha (alf)
+    !
+      alf = sum(vk*res) / (sum(vk*vk)+small)
+    
+      ! Update solution vector
+      fi(1:n) = fi(1:n) + alf*zk
+    
+      ! Update residual vector
+      res = res - alf*vk
+    
+      ! L1-norm of residual
+      resl = sum(abs(res))
+    
+      itr_used = itr_used + 1
+      
+    !
+    ! Check convergence
+    !
+    
+      rsm = resl/(res0+small)
+    
+      if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim(chvar),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
+    
+      if( rsm.lt.tol_rel .or. resl.lt.tol_abs ) exit ! Criteria for exiting iterations.
+    
+    !
+    ! End of iteration loop
+    !
       end do
-      d(i) = d(i) - a( k ) * d( ja( k )) * a( l )
-    end do
-    d(i) = 1.0_dp / d(i)
-  enddo 
-
-!
-! Initialize working arrays and constants
-!
-  reso  = res    
-  pk = 0.0_dp
-  uk = 0.0_dp
-  zk = 0.0_dp
-  vk = 0.0_dp
-
-  alf = 1.0_dp
-  beto = 1.0_dp
-  gam = 1.0_dp
-
-  itr_used = 0
-
-!
-! Start iterations
-!
-
-  do l=1,itr_max
-
-!
-! Calculate beta and omega
-!
-  bet = sum(res*reso)
-  om = bet*gam/(alf*beto+small)
-  beto = bet
-
-!
-! Calculate pk
-!
-  pk = res + om*(pk -alf*uk)
-
-
-!
-! Solve (M ZK = PK) - forward substitution
-!
-  do i=1,n
-    zk(i) = pk(i)
-    do k = ioffset(i), diag(i)-1
-      zk(i) = zk(i) -  a( k ) * zk( ja( k ))
-    end do
-    zk(i) = zk(i)*d(i)
-  enddo
-
-  zk = zk/(d+small)
-
-
-!
-! Backward substitution
-!
-  do i=n,1,-1
-    do k = diag(i)+1, ioffset(i+1)-1
-      zk(i) = zk(i) - a( k ) * zk( ja( k ))
-    end do
-    zk(i) = zk(i)*d(i)
-  enddo
-
-
-!
-! Matvec 1: Uk = A*pk
-!
-  do i=1,n
-    uk(i) = 0.0_dp
-    do k = ioffset(i),ioffset(i+1)-1
-      uk(i) = uk(i) +  a(k) * zk( ja(k) ) 
-    enddo
-  enddo
-
-
-!
-! Calculate scalar product uk*reso, and gamma
-!
-  ukreso = sum(uk*reso)
-  gam = bet/ukreso
-
-
-!
-! Update 'fi' and calculate 'w' (overwrite 'res; - it is res-update)
-!
-  fi(1:n) = fi(1:n) + gam*zk
-  res     = res     - gam*uk   ! <- W
-
-
-!
-! Solve (M Y = W); Y overwrites zk; forward substitution
-!
-  do i=1,n
-    zk(i) = res(i)
-    do k = ioffset(i), diag(i)-1
-      zk(i) = zk(i) -  a( k ) * zk( ja( k ) )
-    end do
-    zk(i) = zk(i)*d(i)
-  enddo
-
-  zk = zk/(d+small)
-
-!
-! Backward substitution
-!
-  do i=n,1,-1
-    do k = diag(i)+1, ioffset(i+1)-1
-      zk(i) = zk(i) - a( k ) * zk( ja( k ) )
-    end do
-    zk(i) = zk(i)*d(i)
-  enddo
-
-!
-! Matvec 2: v = A*y (vk = A*zk); vk = csrMatVec(a,zk)
-!
-  do i=1,n
-    vk(i) = 0.0_dp
-    do k = ioffset(i),ioffset(i+1)-1
-      vk(i) = vk(i) +  a(k) * zk( ja(k) ) 
-    enddo
-  enddo  
-
-!
-! Calculate alpha (alf)
-!
-  alf = sum(vk*res) / (sum(vk*vk)+small)
-
-  ! Update solution vector
-  fi(1:n) = fi(1:n) + alf*zk
-
-  ! Update residual vector
-  res = res - alf*vk
-
-  ! L1-norm of residual
-  resl = sum(abs(res))
-
-  itr_used = itr_used + 1
+    
+    ! Write linear solver report:
+      write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  BiCGStab(ILU(0)):  Solving for ',trim(chvar), &
+      ', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used      
+        
+  endif
   
-!
-! Check convergence
-!
-
-  rsm = resl/(res0+small)
-
-  if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim(chvar),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
-
-  if( rsm.lt.tol_rel .or. resl.lt.tol_abs ) exit ! Criteria for exiting iterations.
-
-!
-! End of iteration loop
-!
-  end do
-
-! Write linear solver report:
-  write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  BiCGStab(ILU(0)):  Solving for ',trim(chvar), &
-  ', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used
+  deallocate(reso)
+  deallocate(pk)
+  deallocate(uk)
+  deallocate(zk)
+  deallocate(vk)
+  deallocate(d)
+  deallocate(res)
 
 end subroutine
 
@@ -786,6 +838,7 @@ subroutine m_pmgmres_ilu ( n, nz_num, ia, ja, a, ua, x, rhs, res0, itr_max, mr, 
 !    Original C version by Lili Ju.
 !    FORTRAN90 version by John Burkardt.
 !    Modification for usage in  CFD code by Nikola Mirkov
+!    modified by xtc
 !
 !  Reference:
 !
@@ -855,42 +908,51 @@ subroutine m_pmgmres_ilu ( n, nz_num, ia, ja, a, ua, x, rhs, res0, itr_max, mr, 
 
   character( len = * ) :: chvar
 
-  integer ( kind = 4 ) mr
-  integer ( kind = 4 ) n
-  integer ( kind = 4 ) nz_num
+  integer :: mr
+  integer :: n
+  integer :: nz_num
+  integer  :: itr
+  integer  :: itr_max
+  integer  :: itr_used
+  integer  :: j
+  integer  :: i
+  integer  :: k
+  integer  :: k_copy
 
-  real ( kind = 8 ) a(nz_num)
-  real ( kind = 8 ) av
-  real ( kind = 8 ) c(mr+1)
-  real ( kind = 8 ), parameter :: delta = 1.0D-03
-  real ( kind = 8 ) g(mr+1)
-  real ( kind = 8 ) h(mr+1,mr)
-  real ( kind = 8 ) htmp
-  integer ( kind = 4 ) i
-  integer ( kind = 4 ) ia(n+1)
-  integer ( kind = 4 ) itr
-  integer ( kind = 4 ) itr_max
-  integer ( kind = 4 ) itr_used
-  integer ( kind = 4 ) j
-  integer ( kind = 4 ) ja(nz_num)
-  integer ( kind = 4 ) k
-  integer ( kind = 4 ) k_copy
-  real ( kind = 8 ) l(ia(n+1)+1)
-  real ( kind = 8 ) mu
-  real ( kind = 8 ) r(n)
-  real ( kind = 8 ) rho
-  real ( kind = 8 ) res0
-  real ( kind = 8 ) rho_tol
-  real ( kind = 8 ) rhs(n)
-  real ( kind = 8 ) s(mr+1)
-  real ( kind = 8 ) tol_abs
-  real ( kind = 8 ) tol_rel
-  integer ( kind = 4 ) ua(n)
-  real ( kind = 8 ) v(n,mr+1);
+  real(dp) :: htmp
+  real(dp) :: av
+  real(dp) :: mu
+  real(dp) :: rho
+  real(dp) :: res0
+  real(dp) :: rho_tol
+  real(dp) :: tol_abs
+  real(dp) :: tol_rel  
   logical verbose
-  real ( kind = 8 ) x(n)
-  real ( kind = 8 ) y(mr+1)
-
+  
+  integer, dimension(:), allocatable, intent(in) :: ua  
+  integer, dimension(:), allocatable, intent(in) :: ia
+  integer, dimension(:), allocatable, intent(in) :: ja
+  real(dp), dimension(:), allocatable, intent(in):: a
+  real(dp), dimension(:), allocatable, intent(inout) :: x
+  real(dp), dimension(:), allocatable, intent(in) :: rhs
+  real(dp), parameter :: delta = 1.0D-03
+  real(dp), dimension(:), allocatable :: c
+  real(dp), dimension(:), allocatable :: g
+  real(dp), dimension(:), allocatable :: l
+  real(dp), dimension(:), allocatable :: r
+  real(dp), dimension(:), allocatable :: s
+  real(dp), dimension(:), allocatable :: y
+  real(dp), dimension(:,:), allocatable :: h
+  real(dp), dimension(:,:), allocatable :: v
+  
+  allocate(c(mr+1))
+  allocate(g(mr+1))
+  allocate(l(ia(n+1)+1))
+  allocate(r(n))
+  allocate(s(mr+1))
+  allocate(y(mr+1))
+  allocate(h(mr+1,mr))
+  allocate(v(n,mr+1))
 
   itr_used = 0
   rho_tol = 0. ! To eliminate 'uninitialized' warning.
@@ -1024,8 +1086,16 @@ subroutine m_pmgmres_ilu ( n, nz_num, ia, ja, a, ua, x, rhs, res0, itr_max, mr, 
   write(6,'(a,i2,3a,1PE10.3,a,1PE10.3,a,I0)') '  PMGMRES_ILU(',mr,'):  Solving for ',trim(chvar), &
   ', Initial residual = ',res0,', Final residual = ',rho,', No Iterations ',itr_used
 
+  deallocate(c)
+  deallocate(g)
+  deallocate(l)
+  deallocate(r)
+  deallocate(s)
+  deallocate(y)
+  deallocate(h)
+  deallocate(v)
 
-  return
+  
 end
 
 subroutine atx_cr ( n, nz_num, ia, ja, a, x, w )
@@ -1203,7 +1273,7 @@ subroutine ax_cr ( n, nz_num, ia, ja, a, x, w )
   integer ( kind = 4 ) k1
   integer ( kind = 4 ) k2
   real ( kind = 8 ) w(n)
-  real ( kind = 8 ) x(n)
+  real(dp),dimension(n) :: x
 
   w(1:n) = 0.0D+00
 
