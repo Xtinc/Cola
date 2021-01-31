@@ -26,11 +26,11 @@ program cola
   integer :: local_cycles = 0
   integer :: iter
   integer :: itimes, itimee
-  real(dp):: source
+  real(dp):: source, res_ratio
   real :: start, finish, t_start, t_end
   logical :: diverge = .false.
+  logical :: last_iter_diverge = .false.
   logical :: fulloop = .true.
-  integer :: checkcycle
   character( len = 9) :: timechar
   type( CLS_CMD_Progress ) ::Progress
 !                                                                       
@@ -65,7 +65,6 @@ program cola
   
   itimes = itime+1
   itimee = numstep
-  checkcycle = ceiling(itime+0.05*numstep)
   !we won't check res in first 5% cycle
   
   WRITE(*,*)''
@@ -132,16 +131,24 @@ program cola
       !  Simulation management - residuals, loop control, output, etc.
       !---------------------------------------------------------------
 
+      res_ratio = source
       ! Check residual and stop program if residuals diverge
       source = max(resor(iu),resor(iv),resor(iw),resor(ip)) 
-      
+      !res_ratio=source/lastres
+      res_ratio = source/res_ratio
 
-      if( itime.gt.checkcycle.and.source.gt.slarge ) then
-          write(6,"(//,10x,a)") "*** Program terminated -  iterations diverge ***" 
-          diverge=.true. 
-          fulloop=.false.
-          exit time_loop
+      if(source.gt.slarge) then
+          if(last_iter_diverge.and.(res_ratio.gt.10)) then
+              ! Residual is growing and derivative is more than 10(should be user specified).
+              write(6,"(//,10x,a)") "*** Program terminated -  iterations diverge ***" 
+              diverge=.true. 
+              fulloop=.false.
+              exit time_loop
+          else
+              last_iter_diverge = .true.
+          end if
       endif
+      
 
       if(ltransient) then 
         ! Has converged within timestep or has reached maximum no. of SIMPLE iterations per timetstep:
@@ -195,7 +202,7 @@ program cola
   if(.not.fulloop)then
       write(*,*)''
       if(diverge)then
-          write(*,"(2x,a,a,a)") "Program Terminated -  Iterations Diverge, ", ConverTime(INT(t_end - t_start)), 'SECONDS OF CPU TIME CONSUMED.'
+          write(*,"(2x,a,a,a)") "Program Terminated -  Iterations Diverge, ", ConverTime(INT(t_end - t_start)), 'CPU Time Consumed.'
       end if
       
   else

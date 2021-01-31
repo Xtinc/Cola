@@ -73,7 +73,7 @@ subroutine CourantNo
   meanCoNum = 0.5*meanCoNum/TotalVol*timestep
 
   !// If we keep the value of Courant Number fixed
-  if( CoNumFix ) then
+  if( CoNumFix.and.(CoNum.ne.0) ) then
       dt = timestep
       timestep = CoNumFixValue/CoNum * timestep
 
