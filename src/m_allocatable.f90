@@ -315,7 +315,6 @@ use parameters, only: nphi
     case ('boundedCentral')
       judge_convection_scheme = 'boundedCentral'
     case default
-      write(*,'(2x,a,a,a)')"Warning: "scheme," is not a supported convection scheme."
       judge_convection_scheme = '2nd order upwind'
     end select
     return
@@ -386,14 +385,12 @@ use parameters, only: nphi
       if(symmetry)then
           judge_linear_solver = 'DPCG'
       else
-          write(*,'(2x,a,a,a)')"Warning: "scheme," is not a symmetry linear solver."
           judge_linear_solver = 'BICGSTAB_ILU0'
       end if
     case('ICCG')
         if(symmetry)then
           judge_linear_solver = 'ICCG'
         else
-          write(*,'(2x,a,a,a)')"Warning: "scheme," is not a symmetry linear solver."
           judge_linear_solver = 'BICGSTAB_ILU0'  
         end if
     case default
