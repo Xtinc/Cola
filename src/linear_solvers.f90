@@ -24,9 +24,11 @@ module linear_solvers
 !    This code is distributed under the GNU GPL license. 
 !
   use types
-  use parameters, only: small
+  use parameters, only: small, resor ,nsw , sor
   use geometry, only: numCells,numTotal
   use sparse_matrix, only: nnz, ioffset, a, ja, diag
+  use variables, only: ls_res
+  use title_mod
 
   implicit none
 
@@ -35,7 +37,7 @@ module linear_solvers
 contains
 
 
-subroutine spsolve(solver, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar,verbose)
+subroutine spsolve(solver, fi, rhs, idx, verbose)
 !
 !  Purpose:
 !   Main routine for solution of sparse linear systems, adjusted to use global variables of freeCappuccino.
@@ -50,11 +52,11 @@ subroutine spsolve(solver, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar,verbo
   character( len = *) :: solver                       ! Char string for linear solver name.
   real(dp), dimension(:),allocatable, target, intent(inout) :: fi  ! On input-current field; on output-the solution vector
   real(dp), dimension(:),allocatable, target, intent(in) :: rhs    ! The right hand side of the linear system
-  real(dp), intent(out) :: res0                       ! Output - initial residual of the linear system in L1 norm 
-  integer, intent(in) :: itr_max                      ! Maximum number of iterations
-  real(dp), intent(in) :: tol_abs                     ! Absolute tolerance level for residual
-  real(dp), intent(in) :: tol_rel                     ! Relative tolerance level for residual
-  character( len=* ), intent(in) :: chvar             ! Character string containing name of the solved field, printed on stdout
+  real(dp)  :: res0                       ! Output - initial residual of the linear system in L1 norm 
+  integer   :: itr_max                      ! Maximum number of iterations
+  real(dp)  :: tol_abs                     ! Absolute tolerance level for residual
+  real(dp)  :: tol_rel                     ! Relative tolerance level for residual
+  integer :: idx                                      ! Character string containing name of the solved field, printed on stdout
   logical :: verbose                                  ! Print linear solver process
   real(dp)::factor
   
@@ -63,23 +65,26 @@ subroutine spsolve(solver, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar,verbo
   
   tmpfi  => fi(1:numCells)
   tmprhs => rhs
+  itr_max = nsw(idx)
+  tol_abs = 1.0e-13
+  tol_rel = sor(idx)
 
 
   if( solver .eq. 'gauss-seidel') then
 
-    call m_GaussSeidel( numCells, nnz, tmpfi, tmprhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+    call m_GaussSeidel( numCells, nnz, tmpfi, tmprhs, res0, itr_max, tol_abs, tol_rel, idx, verbose )
 
   elseif( solver .eq. 'dcg' ) then
 
-    call m_dpcg( numCells, nnz, tmpfi, tmprhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+    call m_dpcg( numCells, nnz, tmpfi, tmprhs, res0, itr_max, tol_abs, tol_rel, idx, verbose )
 
   elseif( solver .eq. 'iccg' ) then 
 
-    call m_iccg( numCells, nnz, tmpfi, tmprhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+    call m_iccg( numCells, nnz, tmpfi, tmprhs, res0, itr_max, tol_abs, tol_rel, idx, verbose )
 
   elseif( solver .eq. 'bicgstab_ilu' ) then  
 
-    call m_bicgstab( numCells, nnz, tmpfi, tmprhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose ) 
+    call m_bicgstab( numCells, nnz, tmpfi, tmprhs, res0, itr_max, tol_abs, tol_rel, idx, verbose ) 
 
   elseif( solver .eq. 'pmgmres_ilu' ) then 
 
@@ -89,21 +94,21 @@ subroutine spsolve(solver, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar,verbo
     allocate(tmpfi2(numCells))
     tmpfi2=fi(1:numCells)
 
-    call m_pmgmres_ilu( numCells, nnz, ioffset, ja, a, diag, tmpfi2 , rhs, res0, itr_max, 4, tol_abs, tol_rel, chvar, verbose )
+    call m_pmgmres_ilu( numCells, nnz, ioffset, ja, a, diag, tmpfi2 , rhs, res0, itr_max, 4, tol_abs, tol_rel, idx, verbose )
     
     deallocate(tmpfi2)
     
   endif
 
   factor = sum( abs( a(diag(1:numCells)) * fi(1:numCells) ))
-  res0 = res0/(factor+small)
+  resor(idx) = res0/(factor+small)
   
 end subroutine
 
 
 !***********************************************************************
 !
-subroutine m_GaussSeidel( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+subroutine m_GaussSeidel( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, idx, verbose )
 !
 !***********************************************************************
 !
@@ -130,7 +135,7 @@ subroutine m_GaussSeidel( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chva
   integer, intent(in) :: itr_max                        ! Maximum number of iterations
   real(dp), intent(in) :: tol_abs                       ! Absolute tolerance level for residual
   real(dp), intent(in) :: tol_rel                       ! Relative tolerance level for residual
-  character( len=* ), intent(in) :: chvar               ! Character string containing name of the solved field, printed on stdout
+  integer :: idx                                        ! Character string containing name of the solved field, printed on stdout
   logical, intent(in) :: verbose                        ! Boolean saying do we print residual of each iteration to stdout.
 
 !
@@ -167,7 +172,7 @@ subroutine m_GaussSeidel( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chva
     res0=sum( abs(res) )
 
     if( res0.lt.tol_abs ) then
-      write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  Gauss-Seidel:  Solving for ',trim( chvar ), &
+      write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  Gauss-Seidel:  Solving for ',trim( chvarSolver(idx) ), &
       ', Initial residual = ',res0,', Final residual = ',res0,', No Iterations 1'
       deallocate(res)
       return
@@ -178,7 +183,7 @@ subroutine m_GaussSeidel( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chva
   if( verbose .and. l.eq.1 ) write(6,'(20x,a,1pe10.3)') 'res0 = ',res0  
 
   ! L1-norm of residual
-  resl = sum( abs(res) )
+  resl = sum( abs(res))
 
   itr_used = itr_used + 1
   
@@ -186,7 +191,8 @@ subroutine m_GaussSeidel( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chva
 ! Check convergence
 !
   rsm = resl/(res0+small)
-  if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvar ),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
+  ls_res(l,idx)=rsm
+  if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvarSolver(idx) ),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
   if( rsm.lt.tol_rel .or. resl.lt.tol_abs ) exit ! Criteria for exiting iterations.
 
 
@@ -196,7 +202,7 @@ subroutine m_GaussSeidel( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chva
   end do
 
 ! Write linear solver report:
-  write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  Gauss-Seidel:  Solving for ',trim( chvar ), &
+  write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  Gauss-Seidel:  Solving for ',trim( chvarSolver(idx) ), &
   ', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used 
   
   deallocate(res)
@@ -206,7 +212,7 @@ end subroutine
 
 !***********************************************************************
 !
-subroutine m_dpcg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+subroutine m_dpcg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, idx, verbose )
 !
 !***********************************************************************
 !
@@ -233,7 +239,7 @@ subroutine m_dpcg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verb
   integer, intent(in) :: itr_max                        ! Maximum number of iterations
   real(dp), intent(in) :: tol_abs                       ! Absolute tolerance level for residual
   real(dp), intent(in) :: tol_rel                       ! Relative tolerance level for residual
-  character( len=* ), intent(in) :: chvar               ! Character string containing name of the solved field, printed on stdout
+  integer :: idx                                        ! Character string containing name of the solved field, printed on stdout
   logical, intent(in) :: verbose                        ! Boolean saying do we print residual of each iteration to stdout.
 !
 ! Local variables
@@ -269,7 +275,7 @@ subroutine m_dpcg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verb
   res0=sum( abs(res) )
   
   if(res0.lt.tol_abs) then
-      write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  PCG(Jacobi):  Solving for ',trim( chvar ), &
+      write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  PCG(Jacobi):  Solving for ',trim( chvarSolver(idx) ), &
       ', Initial residual = ',res0,', Final residual = ',res0,', No Iterations 0'
       
   else
@@ -332,6 +338,7 @@ subroutine m_dpcg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verb
       resl = sum( abs( res ) )
     
       s0=sk
+      
     
       itr_used = itr_used + 1
       
@@ -340,8 +347,8 @@ subroutine m_dpcg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verb
     !
     
       rsm = resl/(res0+small) ! Relative residual - current value
-    
-      if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvar) ,' sweep = ',l,' resl = ',resl,' rsm = ',rsm
+      ls_res(l,idx)=rsm
+      if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvarSolver(idx)) ,' sweep = ',l,' resl = ',resl,' rsm = ',rsm
     
       if( rsm.lt.tol_rel .or. resl.lt.tol_abs ) exit ! Criteria for exiting iterations.
     
@@ -352,7 +359,7 @@ subroutine m_dpcg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verb
     
     ! Write linear solver report:
       write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') &
-      '  PCG(Jacobi):  Solving for ',trim(chvar),', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used        
+      '  PCG(Jacobi):  Solving for ',trim(chvarSolver(idx)),', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used        
   endif
 
   deallocate(pk)
@@ -364,7 +371,7 @@ end subroutine
 
 !***********************************************************************
 !
-subroutine m_iccg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+subroutine m_iccg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, idx, verbose )
 !
 !***********************************************************************
 !
@@ -391,7 +398,7 @@ subroutine m_iccg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verb
   integer, intent(in) :: itr_max                        ! Maximum number of iterations
   real(dp), intent(in) :: tol_abs                       ! Absolute tolerance level for residual
   real(dp), intent(in) :: tol_rel                       ! Relative tolerance level for residual
-  character( len=* ), intent(in) :: chvar               ! Character string containing name of the solved field, printed on stdout
+  integer :: idx                                        ! Character string containing name of the solved field, printed on stdout
   logical, intent(in) :: verbose                        ! Boolean saying do we print residual of each iteration to stdout.
 
 !
@@ -430,7 +437,7 @@ subroutine m_iccg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verb
 
     ! Initially converged solution
   if( res0.lt.tol_abs ) then
-    write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  PCG(IC0):  Solving for ',trim( chvar ), &
+    write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  PCG(IC0):  Solving for ',trim( chvarSolver(idx) ), &
     ', Initial residual = ',res0,', Final residual = ',res0,', No Iterations 0'
   else
       
@@ -515,6 +522,7 @@ subroutine m_iccg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verb
       resl = sum( abs(res) )
     
       s0=sk
+      
     
       itr_used = itr_used + 1
       
@@ -523,8 +531,9 @@ subroutine m_iccg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verb
     !
     
       rsm = resl/(res0+small)
+      ls_res(l,idx)=rsm
     
-      if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvar),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
+      if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim( chvarSolver(idx)),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
     
       if( rsm.lt.tol_rel .or. resl.lt.tol_abs ) exit ! Criteria for exiting iterations.
     
@@ -534,7 +543,7 @@ subroutine m_iccg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verb
       end do
     
     ! Write linear solver report:
-      write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  PCG(IC0):  Solving for ',trim( chvar ), &
+      write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  PCG(IC0):  Solving for ',trim( chvarSolver(idx) ), &
       ', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used
             
   endif  
@@ -548,7 +557,7 @@ subroutine m_iccg( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verb
 end subroutine
 
 
-subroutine m_bicgstab( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, verbose )
+subroutine m_bicgstab( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, idx, verbose )
 !
 !***********************************************************************
 !
@@ -575,7 +584,7 @@ subroutine m_bicgstab( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, 
   integer, intent(in) :: itr_max                        ! Maximum number of iterations
   real(dp), intent(in) :: tol_abs                       ! Absolute tolerance level for residual
   real(dp), intent(in) :: tol_rel                       ! Relative tolerance level for residual
-  character( len=* ), intent(in) :: chvar               ! Character string containing name of the solved field, printed on stdout
+  integer :: idx                                        ! Character string containing name of the solved field, printed on stdout
   logical, intent(in) :: verbose                        ! Boolean saying do we print residual of each iteration to stdout.
 
 !
@@ -613,7 +622,7 @@ subroutine m_bicgstab( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, 
   res0=sum(abs(res))
 
   if(res0.lt.tol_abs) then
-    write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  BiCGStab(ILU(0)):  Solving for ',trim(chvar), &
+    write(6,'(3a,1PE10.3,a,1PE10.3,a)') '  BiCGStab(ILU(0)):  Solving for ',trim(chvarSolver(idx)), &
     ', Initial residual = ',res0,', Final residual = ',res0,', No Iterations 0'
   else
       
@@ -765,6 +774,7 @@ subroutine m_bicgstab( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, 
     
       ! L1-norm of residual
       resl = sum(abs(res))
+      
     
       itr_used = itr_used + 1
       
@@ -773,8 +783,9 @@ subroutine m_bicgstab( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, 
     !
     
       rsm = resl/(res0+small)
+      ls_res(l,idx)=rsm
     
-      if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim(chvar),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
+      if( verbose ) write(6,'(19x,3a,i4,a,1pe10.3,a,1pe10.3)') ' fi=',trim(chvarSolver(idx)),' sweep = ',l,' resl = ',resl,' rsm = ',rsm
     
       if( rsm.lt.tol_rel .or. resl.lt.tol_abs ) exit ! Criteria for exiting iterations.
     
@@ -784,7 +795,7 @@ subroutine m_bicgstab( n, nnz, fi, rhs, res0, itr_max, tol_abs, tol_rel, chvar, 
       end do
     
     ! Write linear solver report:
-      write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  BiCGStab(ILU(0)):  Solving for ',trim(chvar), &
+      write(6,'(3a,1PE10.3,a,1PE10.3,a,I0)') '  BiCGStab(ILU(0)):  Solving for ',trim(chvarSolver(idx)), &
       ', Initial residual = ',res0,', Final residual = ',resl,', No Iterations ',itr_used      
         
   endif
@@ -801,7 +812,7 @@ end subroutine
 
 
 subroutine m_pmgmres_ilu ( n, nz_num, ia, ja, a, ua, x, rhs, res0, itr_max, mr, &
-  tol_abs, tol_rel, chvar, verbose )
+  tol_abs, tol_rel, idx, verbose )
 
 !*****************************************************************************80
 !
@@ -906,7 +917,7 @@ subroutine m_pmgmres_ilu ( n, nz_num, ia, ja, a, ua, x, rhs, res0, itr_max, mr, 
   
   implicit none
 
-  character( len = * ) :: chvar
+  integer :: idx
 
   integer :: mr
   integer :: n
@@ -1043,6 +1054,8 @@ subroutine m_pmgmres_ilu ( n, nz_num, ia, ja, a, ua, x, rhs, res0, itr_max, mr, 
       call mult_givens ( c(k), s(k), k, g )
 
       rho = abs ( g(k+1) )
+      
+      ls_res(itr_used,idx)=rho
 
       itr_used = itr_used + 1
 
@@ -1083,7 +1096,7 @@ subroutine m_pmgmres_ilu ( n, nz_num, ia, ja, a, ua, x, rhs, res0, itr_max, mr, 
   end if
 
   ! Write linear solver report:
-  write(6,'(a,i2,3a,1PE10.3,a,1PE10.3,a,I0)') '  PMGMRES_ILU(',mr,'):  Solving for ',trim(chvar), &
+  write(6,'(a,i2,3a,1PE10.3,a,1PE10.3,a,I0)') '  PMGMRES_ILU(',mr,'):  Solving for ',trim(chvarSolver(idx)), &
   ', Initial residual = ',res0,', Final residual = ',rho,', No Iterations ',itr_used
 
   deallocate(c)

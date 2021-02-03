@@ -133,7 +133,7 @@ subroutine calcp_simple
     ! call dpcg(pp,ip)
     ! call iccg(pp,ip)
     !call bicgstab(pp,ip) 
-    call spsolve(symmetry_linear_solver,pp,su,resor(ip),nsw(ip),1.0E-13_dp,sor(ip),chvarSolver(ip),ltest)
+    call spsolve(symmetry_linear_solver,pp,su,ip,ltest)
     ! call pmgmres_ilu ( numCells, nnz, ioffset, ja, a, diag, pp(1:numCells), ip, su, 30, 4, 1e-7, sor(ip) )
     
     !  write(maxno,'(i5)') nsw(ip)

@@ -237,7 +237,7 @@ subroutine calcp_piso
       ! Solve pressure equation system
       !
       !call iccg(pp,ip)
-      call spsolve(symmetry_linear_solver,pp,su,resor(ip),nsw(ip),1.0E-13_dp,sor(ip),chvarSolver(ip),ltest)
+      call spsolve(symmetry_linear_solver,pp,su,ip,ltest)
 
       ! We have pure Neumann problem - take out the average of the field as the additive constant
       pavg = sum(pp(1:numCells))/dble(numCells)

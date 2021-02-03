@@ -19,7 +19,7 @@ subroutine create_fields
 !***********************************************************************
 !
   integer :: ierr 
-  integer :: localreal,evenum
+  integer :: localreal,evenum, max_nsw,i
   real(dp):: totalnumsize
   
   !plot array hardcoded
@@ -408,6 +408,16 @@ subroutine create_fields
     if(ierr /= 0)write(*,*)"  allocation error: dEpotdxi"       
 
   endif 
+  
+  do i =1,nphi
+      max_nsw=max(nsw(i),max_nsw)
+  end do
+  
+  allocate(ls_res(max_nsw,nphi),stat=ierr)
+  if(ierr/=0)then
+      write(*,*)"  allocation error: LinearSolver_Residual"
+  end if
+  ls_res = 0
   !Report
   localreal = numTotal*32+numFaces+nwal*3+numCells*3+6*size(uoo)+4*size(uooo)+4*size(u_aver)&
       +size(po)+8*size(t)+size(vartoo)+size(tt_aver)+5*size(con)+size(conoo)+6*size(vart)+size(tt_aver)&

@@ -190,6 +190,7 @@ module variables
     real(dp), dimension(:), allocatable :: magStrain          ! Strain magnitude
     real(dp), dimension(:), allocatable :: Vorticity          ! Vorticity magnitude
     
+    real, dimension(:,:), allocatable :: ls_res
     type :: PlotArray
         integer,private::ArraySize=10000
         integer,private::ArrayCol=11
@@ -314,6 +315,7 @@ use parameters, only: nphi
     case ('boundedCentral')
       judge_convection_scheme = 'boundedCentral'
     case default
+      write(*,'(2x,a,a,a)')"Warning: "scheme," is not a supported convection scheme."
       judge_convection_scheme = '2nd order upwind'
     end select
     return
@@ -374,26 +376,28 @@ use parameters, only: nphi
   logical,intent(in)::symmetry
   character(len=20)::judge_linear_solver
     select case( trim(scheme) ) 
-    case ('gauss-seidel')
-      judge_linear_solver = 'gauss-seidel'
-    case('bicgstab_ilu')
-      judge_linear_solver = 'bicgstab_ilu'
-    case('pmgmres_ilu')
-      judge_linear_solver = 'pmgmres_ilu'
-    case('dcg')
+    case ('GAUSS-SEIDEL')
+      judge_linear_solver = 'GAUSS-SEIDEL'
+    case('BICGSTAB_ILU0')
+      judge_linear_solver = 'BICGSTAB_ILU0'
+    case('PMGMRES_ILU0')
+      judge_linear_solver = 'PMGMRES_ILU0'
+    case('DPCG')
       if(symmetry)then
-          judge_linear_solver = 'dcg'
+          judge_linear_solver = 'DPCG'
       else
-          judge_linear_solver = 'bicgstab_ilu'
+          write(*,'(2x,a,a,a)')"Warning: "scheme," is not a symmetry linear solver."
+          judge_linear_solver = 'BICGSTAB_ILU0'
       end if
-    case('iccg')
+    case('ICCG')
         if(symmetry)then
-          judge_linear_solver = 'iccg'
+          judge_linear_solver = 'ICCG'
         else
-          judge_linear_solver = 'bicgstab_ilu'  
+          write(*,'(2x,a,a,a)')"Warning: "scheme," is not a symmetry linear solver."
+          judge_linear_solver = 'BICGSTAB_ILU0'  
         end if
     case default
-      judge_linear_solver = 'bicgstab_ilu'
+      judge_linear_solver = 'BICGSTAB_ILU0'
     end select
     return
   end function

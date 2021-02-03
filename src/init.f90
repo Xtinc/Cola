@@ -216,7 +216,7 @@ subroutine init
 
     ! Solve system
     ! call iccg(pp,ip) 
-    call spsolve(symmetry_linear_solver,pp,su,resor(ip),nsw(ip),1.0E-13_dp,sor(ip),chvarSolver(ip),ltest)
+    call spsolve(symmetry_linear_solver,pp,su,ip,ltest)
     ! call bicgstab(p,ip) 
     ! call pmgmres_ilu ( numCells, nnz, ioffset, ja, a, diag, p(1:numCells), ip, su, 100, 4, 1e-8, sor(ip) )
     ! write(maxno,'(i5)') nsw(ip)

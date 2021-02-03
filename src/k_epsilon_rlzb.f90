@@ -542,7 +542,7 @@ subroutine calcsc(Fi,dFidxi,ifi)
 
   ! Solve linear system:
   !call bicgstab(fi,ifi)
-  call spsolve(linear_solver,fi,su,resor(ifi),nsw(ifi),1.0E-13_dp,sor(ifi),chvarSolver(ifi),ltest)
+  call spsolve(linear_solver,fi,su,ifi,ltest)
 
   !
   ! Update symmetry and outlet boundaries
